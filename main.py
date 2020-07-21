@@ -1,5 +1,6 @@
 import sys
 import json
+import pandas as pd
 from time import sleep
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -92,18 +93,30 @@ class App(QMainWindow):
 
     @pyqtSlot()
     def setconfig(self):
-        config = DialogConfig()
-        self.layout.addWidget(config)
-
-        config.show()
+        self.configf = DialogConfig()
+        self.layout.addWidget(self.configf)
+        self.configf.show()
+        with open("config.json", "r") as read_file:
+            config1 = json.load(read_file)
+        self.configf.qline1.setText(config1["DCcurrent"][0]["offset"])
+        self.configf.qline2.setText(config1["ACvoltage"][0]["offset1"])
+        self.configf.qline3.setText(config1["ACvoltage"][0]["offset2"])
+        self.configf.qline4.setText(config1["ACvoltage"][0]["offset3"])
+        self.configf.qline5.setText(config1["ACcurrent"][0]["offset1"])
+        self.configf.qline6.setText(config1["ACcurrent"][0]["offset2"])
+        self.configf.qline7.setText(config1["ACcurrent"][0]["offset3"])
+        self.configf.qline8.setText(config1["accelerometer"][0]["X"])
+        self.configf.qline9.setText(config1["accelerometer"][0]["Y"])
+        self.configf.qline10.setText(config1["accelerometer"][0]["Z"])
+        self.configf.qline11.setText(config1["time"][0]["time"])
 
     @pyqtSlot()
     def test_connection_pl(self):
         try:
             status["openUnit"] = pl.pl1000OpenUnit(ctypes.byref(chandle))
             assert_pico_ok(status["openUnit"])
-            self.statusBar().showMessage('Picolog connected')
             self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
+            self.statusBar().showMessage('Picolog connected')
             self.testbutton.hide()
             self.plconnection.setDisabled(True)
             self.all_display()
@@ -188,20 +201,27 @@ class App(QMainWindow):
         # self.qTimer.setInterval(100)
         # # connect timeout signal to signal handler
         # self.qTimer.timeout.connect(self.update_accel)
+        butt = QFormLayout()
+        layout = QFormLayout()
         self.startplot = QPushButton('Start plotting', self)
         self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
         # self.startplot.setToolTip('This is an example button')
         self.startplot.setFixedSize(100, 35)
         # self.startplot.move(((self.sizeObject.width() / 3 - 200) / 3), (self.sizeObject.height() - 130))
-        self.startplot.clicked.connect(self.update_accel)
-        grid.addWidget(self.startplot,7,0)
-
-        # self.resetplot = QPushButton('Reset plotting', self)
-        # self.resetplot.setToolTip('This is an example button')
-        # self.resetplot.setFixedSize(100, 35)
-        # self.resetplot.move(((self.sizeObject.width() *2/3 - 100) / 3), (self.sizeObject.height() - 130))
-        # self.resetplot.clicked.connect(self.resetview)
-
+        self.startplot.clicked.connect(self.startview)
+        self.resetplot = QPushButton('Reset plotting', self)
+        self.resetplot.setToolTip('This is an example button')
+        self.resetplot.setFixedSize(100, 35)
+        self.resetplot.setDisabled(True)
+        self.resetplot.clicked.connect(self.resetview)
+        self.showdata = QPushButton('Show and Save data', self)
+        self.showdata.setToolTip('This is an example button')
+        self.showdata.setFixedSize(150, 35)
+        self.showdata.setDisabled(True)
+        self.showdata.clicked.connect(self.showdatatable)
+        butt.addRow(self.resetplot, self.showdata)
+        layout.addRow(self.startplot, butt)
+        grid.addLayout(layout, 7, 0)
         # self.stopplot = QPushButton('Stop plotting', self)
         # self.stopplot.setToolTip('This is an example button')
         # self.stopplot.setFixedSize(100, 35)
@@ -219,84 +239,55 @@ class App(QMainWindow):
         # self.plotDC()
         # self.plotAC()
 
-    def plotDC(self):
-        width = self.sizeObject.width() / 300
-        height = (self.sizeObject.height() - 160) / 200
-        #self.DCV = PlotCanvasDCVoltage(self, width, height)
-        self.DCV.move(width*100, 20)
-        self.layout.addWidget(self.DCV)
-        self.DCV.show()
-        #self.DCC = PlotCanvasDCCurrent(self, width, height)
-        self.DCC.move(200*width, 20)
-        self.layout.addWidget(self.DCC)
-        self.DCC.show()
-        self.DCV.plotDCVol(0)
-        self.DCC.plotDCCur(0)
-
-    def plotAC(self):
-        width = self.sizeObject.width() / 300
-        height = ((self.sizeObject.height() - 160) / 200)
-        #self.ACV = PlotCanvasACVoltage(self, width, height)
-        self.ACV.move((width * 100), (20 + height*100))
-        self.layout.addWidget(self.ACV)
-        self.ACV.show()
-        #self.ACC = PlotCanvasACCurrent(self, width, height)
-        self.ACC.move((200 * width), (20 + height*100))
-        self.layout.addWidget(self.ACC)
-        self.ACC.show()
-        self.ACV.plotACVol(0)
-        self.ACC.plotACCur(0)
-
     @pyqtSlot()
     def startview(self):
-        self.qTimer = QTimer()
-        self.qTimer.setInterval(100)
-        self.i = 0
-        self.qTimer.timeout.connect(self.update_accel)
-        self.startplot.setText("In progress")
-        self.plotX.clear()
-        self.plotY.clear()
-        self.plotZ.clear()
-        self.countdataX = np.arange(0)
-        self.countdataZ = np.arange(0)
-        self.countdataY = np.arange(0)
-        self.dataX = np.arange(0)
-        self.dataY = np.arange(0)
-        self.dataZ = np.arange(0)
-        self.qTimer.start()
-        self.startplot.hide()
-        self.stopplot.show()
-
-    @pyqtSlot()
-    def stopview(self):
-        self.qTimer.stop()
-        # self.update_accel()
-        self.startplot.show()
-        self.stopplot.hide()
+        self.update_accel()
+        self.startplot.setDisabled(True)
+        self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+        self.showdata.setDisabled(False)
+        self.showdata.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
         self.resetplot.setDisabled(False)
+        self.resetplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
 
     @pyqtSlot()
     def resetview(self):
-        # self.update_accel()
+        self.plotX.clear()
+        self.plotY.clear()
+        self.plotZ.clear()
+        self.plotACC.clear()
+        self.plotACV.clear()
+        self.plotDCC.clear()
+        self.plotDCV.clear()
         self.dataX = np.arange(0)
         self.dataY = np.arange(0)
         self.dataZ = np.arange(0)
-        # self.x.plotX(1, self.countdata, self.dataX)
-        # self.y.plotY(1, self.countdata, self.dataY)
-        # self.z.plotZ(1, self.countdata, self.dataZ)
+        self.dataDCV = np.arange(0)
+        self.dataDCC = np.arange(0)
+        self.dataACV1 = np.arange(0)
+        self.dataACV2 = np.arange(0)
+        self.dataACV3 = np.arange(0)
+        self.dataACC1 = np.arange(0)
+        self.dataACC2 = np.arange(0)
+        self.dataACC3 = np.arange(0)
+        self.countdataX = np.arange(0)
+        self.countdataY = np.arange(0)
+        self.countdataZ = np.arange(0)
+        self.countdataDCV = np.arange(0)
+        self.countdataDCC = np.arange(0)
+        self.countdataACV1 = np.arange(0)
+        self.countdataACV2 = np.arange(0)
+        self.countdataACV3 = np.arange(0)
+        self.countdataACC1 = np.arange(0)
+        self.countdataACC2 = np.arange(0)
+        self.countdataACC3 = np.arange(0)
         self.resetplot.setDisabled(True)
-
+        self.resetplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+        self.showdata.setDisabled(True)
+        self.showdata.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+        self.startplot.setDisabled(False)
+        self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+    
     def update_accel(self):
-        self.startplot.setText("Done")
-        # self.i +=1
-        # self.countdata = np.append(self.countdata, [self.i*0.1])
-        # self.dataX = np.append(self.dataX, [(valueX.value*2.5/4092 - 1.265)*9.81/0.041])
-        # self.x.plotX(0, self.countdata, self.dataX)
-        # self.dataY = np.append(self.dataY, [(valueY.value*2.5/4092 - 1.237)*9.81/0.045])
-        # self.y.plotY(0, self.countdata, self.dataY)
-        # self.dataZ = np.append(self.dataZ, [(valueZ.value*2.5/4092- 1.273)*9.81/0.049])
-        # self.z.plotZ(0, self.countdata, self.dataZ)
-        #status["SetDo"] = pl.pl1000SetDo(chandle, 1, 1)
         start = datetime.now()
         start = start.hour*3600000000 + start.minute*60000000 + start.second*1000000 + start.microsecond
         now = datetime.now()
@@ -311,15 +302,21 @@ class App(QMainWindow):
             self.countdataY, self.dataY = self.measure(self.countdataY, self.dataY, "PL1000_CHANNEL_10", chandle, start)
             self.countdataZ, self.dataZ = self.measure(self.countdataZ, self.dataZ, "PL1000_CHANNEL_11", chandle, start)
             self.countdataDCC, self.dataDCC = self.measure(self.countdataDCC, self.dataDCC, "PL1000_CHANNEL_1", chandle, start)
+            now = datetime.now()
+            now = now.hour*3600000000 + now.minute*60000000 + now.second*1000000 + now.microsecond
             status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
             self.countdataDCV, self.dataDCV = self.measure(self.countdataDCV, self.dataDCV, "PL1000_CHANNEL_2", chandle, start)
             self.countdataACC1, self.dataACC1 = self.measure(self.countdataACC1, self.dataACC1, "PL1000_CHANNEL_3", chandle, start)
             self.countdataACV1, self.dataACV1 = self.measure(self.countdataACV1, self.dataACV1, "PL1000_CHANNEL_4", chandle, start)
             self.countdataACC2, self.dataACC2 = self.measure(self.countdataACC2, self.dataACC2, "PL1000_CHANNEL_5", chandle, start)
+            now = datetime.now()
+            now = now.hour*3600000000 + now.minute*60000000 + now.second*1000000 + now.microsecond
             status["SetDo"] = pl.pl1000SetDo(chandle, 1, 0)
             self.countdataACV2, self.dataACV2 = self.measure(self.countdataACV2, self.dataACV2, "PL1000_CHANNEL_6", chandle, start)
             self.countdataACC3, self.dataACC3 = self.measure(self.countdataACC3, self.dataACC3, "PL1000_CHANNEL_7", chandle, start)
             self.countdataACV3, self.dataACV3 = self.measure(self.countdataACV3, self.dataACV3, "PL1000_CHANNEL_8", chandle, start)
+            now = datetime.now()
+            now = now.hour*3600000000 + now.minute*60000000 + now.second*1000000 + now.microsecond
             status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
         status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
         status["SetDo"] = pl.pl1000SetDo(chandle, 0, 1)
@@ -328,14 +325,22 @@ class App(QMainWindow):
         self.plotX.plot(self.countdataX,self.dataX, pen=pg.mkPen('#5CDB95'))
         self.plotY.plot(self.countdataY,self.dataY, pen=pg.mkPen('#5CDB95'))
         self.plotZ.plot(self.countdataZ,self.dataZ, pen=pg.mkPen('#5CDB95'))
-        self.plotDCV.plot(self.countdataDCV, (self.dataDCV/4092)*60, pen=pg.mkPen('#5CDB95'))
-        self.plotDCC.plot(self.countdataDCC, ((self.dataDCC - int(config["DCcurrent"][0]["offset"]))/4092)*30, pen=pg.mkPen('#5CDB95'))
-        self.plotACV.plot(self.countdataACV1, ((self.dataACV1 - int(config["ACvoltage"][0]["offset1"]))/4092)*60, pen=pg.mkPen('m'))
-        self.plotACV.plot(self.countdataACV2, ((self.dataACV2 - int(config["ACvoltage"][0]["offset2"]))/4092)*60, pen=pg.mkPen('#5CDB95'))
-        self.plotACV.plot(self.countdataACV3, ((self.dataACV3 - int(config["ACvoltage"][0]["offset3"]))/4092)*60, pen=pg.mkPen('#EDF5E1'))
-        self.plotACC.plot(self.countdataACC1, ((self.dataACC1 - int(config["ACcurrent"][0]["offset1"]))/4092)*30, pen=pg.mkPen('m'))
-        self.plotACC.plot(self.countdataACC2, ((self.dataACC2 - int(config["ACcurrent"][0]["offset2"]))/4092)*30, pen=pg.mkPen('#5CDB95'))
-        self.plotACC.plot(self.countdataACC3, ((self.dataACC3 - int(config["ACcurrent"][0]["offset3"]))/4092)*30, pen=pg.mkPen('#EDF5E1'))
+        self.dataDCV = (self.dataDCV/4092)*60
+        self.plotDCV.plot(self.countdataDCV, self.dataDCV, pen=pg.mkPen('#5CDB95'))
+        self.dataDCC = ((self.dataDCC - int(config["DCcurrent"][0]["offset"]))/4092)*30
+        self.plotDCC.plot(self.countdataDCC, self.dataDCC, pen=pg.mkPen('#5CDB95'))
+        self.dataACV1 = ((self.dataACV1 - int(config["ACvoltage"][0]["offset1"]))/4092)*60
+        self.plotACV.plot(self.countdataACV1, self.dataACV1, pen=pg.mkPen('m'))
+        self.dataACV2 = ((self.dataACV2 - int(config["ACvoltage"][0]["offset2"]))/4092)*60
+        self.plotACV.plot(self.countdataACV2, self.dataACV2, pen=pg.mkPen('#5CDB95'))
+        self.dataACV3 = ((self.dataACV3 - int(config["ACvoltage"][0]["offset3"]))/4092)*60
+        self.plotACV.plot(self.countdataACV3, self.dataACV3, pen=pg.mkPen('#EDF5E1'))
+        self.dataACC1 = ((self.dataACC1 - int(config["ACcurrent"][0]["offset1"]))/4092)*30
+        self.plotACC.plot(self.countdataACC1, self.dataACC1, pen=pg.mkPen('m'))
+        self.dataACC2 = ((self.dataACC2 - int(config["ACcurrent"][0]["offset2"]))/4092)*30
+        self.plotACC.plot(self.countdataACC2, self.dataACC2, pen=pg.mkPen('#5CDB95'))
+        self.dataACC3 = ((self.dataACC3 - int(config["ACcurrent"][0]["offset3"]))/4092)*30
+        self.plotACC.plot(self.countdataACC3, self.dataACC3, pen=pg.mkPen('#EDF5E1'))
 
     def measure(self, countdataX, dataX, channel , chandle, start):
         value = ctypes.c_int16()
@@ -346,6 +351,49 @@ class App(QMainWindow):
         dataX = np.append(dataX, [(value.value)])
         assert_pico_ok(status["getSingle"])
         return [countdataX, dataX]
+
+    @pyqtSlot()
+    def showdatatable(self):
+        self.table = QTableView()
+
+        data = np.array([
+          self.countdataX,
+          self.dataX,
+          self.countdataY,
+          self.dataY,
+          self.countdataZ,
+          self.dataZ,
+          self.countdataDCV,
+          self.dataDCV,
+          self.countdataDCC,
+          self.dataDCV,
+          self.countdataACV1,
+          self.dataACV1,
+          self.countdataACV2,
+          self.dataACV2,
+          self.countdataACV3,
+          self.dataACV3,
+          self.countdataACC1,
+          self.dataACC1,
+          self.countdataACC2,
+          self.dataACC2,
+          self.countdataACC3,
+          self.dataACC3,
+        ])
+        self.dataex = np.transpose(data)
+        self.model = TableModel(self.dataex)
+        header_labels = ['Time X', 'Data X', 'Time Y', 'Data Y', 'Time Z', 'Data Z', 'Time DCV', 'Data DCV', 'Time DCC', 'Data DCC', 'Time ACV1', 'Data ACV1', 'Time ACV2', 'Data ACV2', 'Time ACV3', 'Data ACV3', 'Time ACC1', 'Data ACC1', 'Time ACC2', 'Data ACC2', 'Time ACC3', 'Data ACC3']
+        ## convert your array into a dataframe
+        df = pd.DataFrame({header_labels[0]: data[0], header_labels[1]: data[1], header_labels[2]: data[2], header_labels[3]: data[3], header_labels[4]: data[4], header_labels[5]: data[5], header_labels[6]: data[6], header_labels[7]: data[7], header_labels[8]: data[8], header_labels[9]: data[9], header_labels[10]: data[10], header_labels[11]: data[11], header_labels[12]: data[12], header_labels[13]: data[13], header_labels[14]: data[14], header_labels[15]: data[15], header_labels[16]: data[16], header_labels[17]: data[17], header_labels[18]: data[18], header_labels[19]: data[19], header_labels[20]: data[20], header_labels[21]: data[21]})
+
+        ## save to xlsx file
+        filepath = 'data_DAC1012-' + datetime.now().strftime("%m-%d-%Y_%H%M%S")  +'.xlsx'
+        df.to_excel(filepath, index=False)
+
+        self.table.setModel(self.model)
+        self.table.setStyleSheet('QHeaderView::section { background-color: #5CDB95; color: #05386B}')
+        self.layout.addWidget(self.table)
+        self.table.show()
 
 class DialogConfig(QDialog):
     NumGridRows = 3
@@ -365,35 +413,101 @@ class DialogConfig(QDialog):
         layout = QFormLayout()
         title1 = QLabel("DC current")
         layout.addRow(title1)
-        qline1 = QLineEdit()
-        layout.addRow(QLabel("offset:"), qline1)
+        self.qline1 = QLineEdit()
+        layout.addRow(QLabel("offset:"), self.qline1)
         layout.addRow(QLabel("AC voltages"))
-        qline2 = QLineEdit()
-        layout.addRow(QLabel("offset AC1:"), qline2)
-        qline3 = QLineEdit()
-        layout.addRow(QLabel("offset AC2:"), qline3)
-        qline4 = QLineEdit()
-        layout.addRow(QLabel("offset AC3:"), qline4)
+        self.qline2 = QLineEdit()
+        layout.addRow(QLabel("offset AC1:"), self.qline2)
+        self.qline3 = QLineEdit()
+        layout.addRow(QLabel("offset AC2:"), self.qline3)
+        self.qline4 = QLineEdit()
+        layout.addRow(QLabel("offset AC3:"), self.qline4)
         layout.addRow(QLabel("AC currents"))
-        qline5 = QLineEdit()
-        layout.addRow(QLabel("offset AC1:"), qline5)
-        qline6 = QLineEdit()
-        layout.addRow(QLabel("offset AC2:"), qline6)
-        qline7 = QLineEdit()
-        layout.addRow(QLabel("offset AC3:"), qline7)
+        self.qline5 = QLineEdit()
+        layout.addRow(QLabel("offset AC1:"), self.qline5)
+        self.qline6 = QLineEdit()
+        layout.addRow(QLabel("offset AC2:"), self.qline6)
+        self.qline7 = QLineEdit()
+        layout.addRow(QLabel("offset AC3:"), self.qline7)
         layout.addRow(QLabel("Accelerometer"))
-        qline8 = QLineEdit()
-        layout.addRow(QLabel("X axis:"), qline8)
-        qline9 = QLineEdit()
-        layout.addRow(QLabel("Y axis:"), qline9)
-        qline10 = QLineEdit()
-        layout.addRow(QLabel("Z axis:"), qline10)
+        self.qline8 = QLineEdit()
+        layout.addRow(QLabel("X axis:"), self.qline8)
+        self.qline9 = QLineEdit()
+        layout.addRow(QLabel("Y axis:"), self.qline9)
+        self.qline10 = QLineEdit()
+        layout.addRow(QLabel("Z axis:"), self.qline10)
         layout.addRow(QLabel("Time of sampling"))
-        qline11 = QLineEdit()
-        layout.addRow(QLabel("Nbr of microseconds:"), qline11)
-        layout.addRow(QPushButton("Cancel"), QPushButton("Save"))
+        self.qline11 = QLineEdit()
+        layout.addRow(QLabel("Nbr of microseconds:"), self.qline11)
+        save = QPushButton("Save")
+        save.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        save.clicked.connect(self.saveconfig)
+        layout.addRow(QLabel(" "), QLabel(" "))
+        layout.addRow(QLabel(" "), save)
         self.formGroupBox.setLayout(layout)
+    
+    def saveconfig(self):
+        data = {}
+        data['accelerometer'] = []
+        data['accelerometer'].append({
+            'X': self.qline8.text(),
+            'Y': self.qline9.text(),
+            'Z': self.qline10.text()
+        })
+        data['DCcurrent'] = []
+        data['DCcurrent'].append({
+            'offset': self.qline1.text()
+        })
+        data['ACvoltage'] = []
+        data['ACvoltage'].append({
+            'offset1': self.qline2.text(),
+            'offset2': self.qline3.text(),
+            'offset3': self.qline4.text()
 
+        })
+        data['ACcurrent'] = []
+        data['ACcurrent'].append({
+            'offset1': self.qline5.text(),
+            'offset2': self.qline6.text(),
+            'offset3': self.qline7.text()
+
+        })
+        data["time"] = []
+        data["time"].append({
+            'time': self.qline11.text()
+        })
+        with open('config.json', 'w') as outfile:
+            json.dumps(data, indent=4)
+            json.dump(data, outfile)
+        self.hide()
+
+class TableModel(QAbstractTableModel):
+
+    def __init__(self, data):
+        super(TableModel, self).__init__()
+        self._data = data
+        self.header_labels = ['Time X', 'Data X', 'Time Y', 'Data Y', 'Time Z', 'Data Z', 'Time DCV', 'Data DCV', 'Time DCC', 'Data DCC', 'Time ACV1', 'Data ACV1', 'Time ACV2', 'Data ACV2', 'Time ACV3', 'Data ACV3', 'Time ACC1', 'Data ACC1', 'Time ACC2', 'Data ACC2', 'Time ACC3', 'Data ACC3']
+
+    def data(self, index, role):
+        if role == Qt.DisplayRole:
+            # Note: self._data[index.row()][index.column()] will also work
+            value = self._data[index.row(), index.column()]
+            return str(value)
+        elif role == Qt.BackgroundColorRole:
+            return QColor(5, 56, 107)
+        elif role == Qt.ForegroundRole:
+            return QColor(92, 219, 149)
+
+    def rowCount(self, index):
+        return self._data.shape[0]
+
+    def columnCount(self, index):
+        return self._data.shape[1]
+
+    def headerData(self, section, orientation, role=Qt.DisplayRole):
+        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+            return self.header_labels[section]
+        return QAbstractTableModel.headerData(self, section, orientation, role)
 if __name__ == '__main__':
     sys_argv = sys.argv
     app = QApplication(sys.argv)
