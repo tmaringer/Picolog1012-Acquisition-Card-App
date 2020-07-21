@@ -1,8 +1,9 @@
 title: Picolog1012-acquisition-card-app
 description: 
 google_analytics: 
-show_downloads: false
+show_downloads: true
 theme: jekyll-theme-cayman
-
+github:
+  zip_url: https://github.com/titimar16/Picolog1012-Acquisition-Card-App/archive/master.zip
 gems:
   - jekyll-mentions
