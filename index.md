@@ -12,11 +12,11 @@ pip install openpyxl
 pip install numpy
 ```
 ## The application
-<br>All the results are displayed in 7 graphs: the three axis of the accelerometer, the DC power supply voltage and current, the AC phases voltages and currents.
+All the results are displayed in 7 graphs: the three axis of the accelerometer, the DC power supply voltage and current, the AC phases voltages and currents.<br><br>
 ![the graphs](https://github.com/titimar16/Picolog1012-Acquisition-Card-App/blob/master/screenshots/graph.png?raw=true)
 ## The configuration
-<br>You can modify some parameters of the plots using this page.
+You can modify some parameters of the plots using this form.<br><br>
 ![the config](https://github.com/titimar16/Picolog1012-Acquisition-Card-App/blob/master/screenshots/config.png?raw=true)
 ## Export the data
-<br>Data is exported when you click on "show and save data". It is exported as an .xlsx Excel sheet. This way you can continue measuring data without losing anything.
+Data is exported when you click on "show and save data". It is exported as an .xlsx Excel sheet. This way you can continue measuring data without losing anything.<br><br>
 ![the data](https://github.com/titimar16/Picolog1012-Acquisition-Card-App/blob/master/screenshots/data.png?raw=true)
