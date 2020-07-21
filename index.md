@@ -1,5 +1,4 @@
-# Picolog 1012 Acquisition Card App
- An application written in Python to display and manage a Picolog 1012 with a DAC for Mirmex Motor.
+**An application written in Python to display and manage a Picolog 1012 with a DAC for Mirmex Motor.**
 ## How to install
 First, you need to install Python (found at https://www.python.org/ ).
 <br>Second you need to install some packages (using a terminal):
