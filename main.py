@@ -2,7 +2,7 @@ import ctypes
 import json
 import sys
 from datetime import datetime
-
+import time
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
@@ -67,7 +67,7 @@ class App(QMainWindow):
         mainmenu = self.menuBar()
         self.filemenu = mainmenu.addMenu('File')
         editmenu = mainmenu.addMenu('Config')
-        self.viewMenu = mainmenu.addMenu('View')
+        # self.viewMenu = mainmenu.addMenu('View')
         self.testbutton = QPushButton('Connection to the Picolog', self)
         self.testbutton.setToolTip('This is an example button')
         self.testbutton.setFixedSize(180, 35)
@@ -88,8 +88,8 @@ class App(QMainWindow):
         full.triggered.connect(self.fullscreennow)
         maxim = QAction('Maximized', self)
         maxim.triggered.connect(self.maximnow)
-        self.viewMenu.addAction(full)
-        self.viewMenu.addAction(maxim)
+        #self.viewMenu.addAction(full)
+        #self.viewMenu.addAction(maxim)
         self.filemenu.addAction(exitButton)
         self.show()
 
@@ -201,6 +201,18 @@ class App(QMainWindow):
         layout.addRow(self.startplot, butt)
         grid.addLayout(layout, 7, 0)
 
+        butt1 = QFormLayout()
+        layout1 = QFormLayout()
+        self.leg1 = QLabel("          Phase 1        ")
+        self.leg1.setStyleSheet('QLabel {background-color: #05386B; color: magenta;}')
+        self.leg2 = QLabel("Phase 2        ")
+        self.leg2.setStyleSheet('QLabel {background-color: #05386B; color: #5CDB95;}')
+        self.leg3 = QLabel("Phase 3        ")
+        self.leg3.setStyleSheet('QLabel {background-color: #05386B; color: #EDF5E1;}')
+        butt1.addRow(self.leg2, self.leg3)
+        layout1.addRow(self.leg1, butt1)
+        grid.addLayout(layout1, 7, 1)
+
     @pyqtSlot()
     def startview(self):
         self.update_accel()
@@ -252,22 +264,19 @@ class App(QMainWindow):
     def update_accel(self):
         start = datetime.now()
         start = start.hour * 3600000000 + start.minute * 60000000 + start.second * 1000000 + start.microsecond
-        now = datetime.now()
-        now = now.hour * 3600000000 + now.minute * 60000000 + now.second * 1000000 + now.microsecond
+        self.now = datetime.now()
+        self.now = self.now.hour * 3600000000 + self.now.minute * 60000000 + self.now.second * 1000000 + self.now.microsecond
+        status["SetDo"] = pl.pl1000SetDo(chandle, 1, 1)
+        status["SetDo"] = pl.pl1000SetDo(chandle, 1, 0)
         with open("config.json", "r") as read_file:
             time = json.load(read_file)
-        while (now - start) < int(time["time"][0]["time"]):
-            status["SetDo"] = pl.pl1000SetDo(chandle, 1, 0)
-            now = datetime.now()
-            now = now.hour * 3600000000 + now.minute * 60000000 + now.second * 1000000 + now.microsecond
+        while (self.now - start) < int(time["time"][0]["time"]):
+            self.now = datetime.now()
+            self.now = self.now.hour * 3600000000 + self.now.minute * 60000000 + self.now.second * 1000000 + self.now.microsecond
             self.countdataX, self.dataX = self.measure(self.countdataX, self.dataX, "PL1000_CHANNEL_9", chandle, start)
             self.countdataY, self.dataY = self.measure(self.countdataY, self.dataY, "PL1000_CHANNEL_10", chandle, start)
             self.countdataZ, self.dataZ = self.measure(self.countdataZ, self.dataZ, "PL1000_CHANNEL_11", chandle, start)
-            self.countdataDCC, self.dataDCC = self.measure(self.countdataDCC, self.dataDCC, "PL1000_CHANNEL_1", chandle,
-                                                           start)
-            now = datetime.now()
-            now = now.hour * 3600000000 + now.minute * 60000000 + now.second * 1000000 + now.microsecond
-            status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
+            self.countdataDCC, self.dataDCC = self.measure(self.countdataDCC, self.dataDCC, "PL1000_CHANNEL_1", chandle, start)
             self.countdataDCV, self.dataDCV = self.measure(self.countdataDCV, self.dataDCV, "PL1000_CHANNEL_2", chandle,
                                                            start)
             self.countdataACC1, self.dataACC1 = self.measure(self.countdataACC1, self.dataACC1, "PL1000_CHANNEL_3",
@@ -276,28 +285,23 @@ class App(QMainWindow):
                                                              chandle, start)
             self.countdataACC2, self.dataACC2 = self.measure(self.countdataACC2, self.dataACC2, "PL1000_CHANNEL_5",
                                                              chandle, start)
-            now = datetime.now()
-            now = now.hour * 3600000000 + now.minute * 60000000 + now.second * 1000000 + now.microsecond
-            status["SetDo"] = pl.pl1000SetDo(chandle, 1, 0)
             self.countdataACV2, self.dataACV2 = self.measure(self.countdataACV2, self.dataACV2, "PL1000_CHANNEL_6",
                                                              chandle, start)
             self.countdataACC3, self.dataACC3 = self.measure(self.countdataACC3, self.dataACC3, "PL1000_CHANNEL_7",
                                                              chandle, start)
             self.countdataACV3, self.dataACV3 = self.measure(self.countdataACV3, self.dataACV3, "PL1000_CHANNEL_8",
                                                              chandle, start)
-            now = datetime.now()
-            now = now.hour * 3600000000 + now.minute * 60000000 + now.second * 1000000 + now.microsecond
-            status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
         status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
         status["SetDo"] = pl.pl1000SetDo(chandle, 0, 1)
         with open("config.json", "r") as read_file:
             config = json.load(read_file)
-        self.plotX.plot(self.countdataX, self.dataX, pen=pg.mkPen('#5CDB95'))
-        self.plotY.plot(self.countdataY, self.dataY, pen=pg.mkPen('#5CDB95'))
-        self.plotZ.plot(self.countdataZ, self.dataZ, pen=pg.mkPen('#5CDB95'))
+        self.plotX.plot(self.countdataX, ((self.dataX/4092*2.5)-(self.dataX[0]/4092*2.5))*1/float(config["accelerometer"][0]["X"]), pen=pg.mkPen('#5CDB95'))
+        self.plotY.plot(self.countdataY, ((self.dataY/4092*2.5)-(self.dataY[0]/4092*2.5))*1/float(config["accelerometer"][0]["Y"]), pen=pg.mkPen('#5CDB95'))
+        self.plotZ.plot(self.countdataZ, ((self.dataZ/4092*2.5)-(self.dataZ[0]/4092*2.5))*1/float(config["accelerometer"][0]["Z"]), pen=pg.mkPen('#5CDB95'))
         self.dataDCV = (self.dataDCV / 4092) * 60
         self.plotDCV.plot(self.countdataDCV, self.dataDCV, pen=pg.mkPen('#5CDB95'))
-        self.dataDCC = ((self.dataDCC - int(config["DCcurrent"][0]["offset"])) / 4092) * 30
+        self.dataDCC = (((self.dataDCC - int(config["DCcurrent"][0]["offset"]))/4092)*2.5)*2/0.066
+        print(np.mean(self.dataDCC))
         self.plotDCC.plot(self.countdataDCC, self.dataDCC, pen=pg.mkPen('#5CDB95'))
         self.dataACV1 = ((self.dataACV1 - int(config["ACvoltage"][0]["offset1"])) / 4092) * 60
         self.plotACV.plot(self.countdataACV1, self.dataACV1, pen=pg.mkPen('m'))
@@ -305,19 +309,19 @@ class App(QMainWindow):
         self.plotACV.plot(self.countdataACV2, self.dataACV2, pen=pg.mkPen('#5CDB95'))
         self.dataACV3 = ((self.dataACV3 - int(config["ACvoltage"][0]["offset3"])) / 4092) * 60
         self.plotACV.plot(self.countdataACV3, self.dataACV3, pen=pg.mkPen('#EDF5E1'))
-        self.dataACC1 = ((self.dataACC1 - int(config["ACcurrent"][0]["offset1"])) / 4092) * 30
+        self.dataACC1 = ((self.dataACC1 - int(config["ACcurrent"][0]["offset1"])) / 4092) * 5/0.066
         self.plotACC.plot(self.countdataACC1, self.dataACC1, pen=pg.mkPen('m'))
-        self.dataACC2 = ((self.dataACC2 - int(config["ACcurrent"][0]["offset2"])) / 4092) * 30
+        self.dataACC2 = ((self.dataACC2 - int(config["ACcurrent"][0]["offset2"])) / 4092) * 5/0.066
         self.plotACC.plot(self.countdataACC2, self.dataACC2, pen=pg.mkPen('#5CDB95'))
-        self.dataACC3 = ((self.dataACC3 - int(config["ACcurrent"][0]["offset3"])) / 4092) * 30
+        self.dataACC3 = ((self.dataACC3 - int(config["ACcurrent"][0]["offset3"])) / 4092) * 5/0.066
         self.plotACC.plot(self.countdataACC3, self.dataACC3, pen=pg.mkPen('#EDF5E1'))
 
     def measure(self, countdataX, dataX, channel, chandle, start):
         value = ctypes.c_int16()
         status["getSingle"] = pl.pl1000GetSingle(chandle, pl.PL1000Inputs[channel], ctypes.byref(value))
-        now = datetime.now()
-        now = now.hour * 3600000000 + now.minute * 60000000 + now.second * 1000000 + now.microsecond
-        countdataX = np.append(countdataX, [(now - start) * 0.000001])
+        self.now = datetime.now()
+        self.now = self.now.hour * 3600000000 + self.now.minute * 60000000 + self.now.second * 1000000 + self.now.microsecond
+        countdataX = np.append(countdataX, [(self.now - start) * 0.000001])
         dataX = np.append(dataX, [(value.value)])
         assert_pico_ok(status["getSingle"])
         return [countdataX, dataX]
@@ -409,11 +413,11 @@ class DialogConfig(QDialog):
         layout.addRow(QLabel("offset AC3:"), self.qline7)
         layout.addRow(QLabel("Accelerometer"))
         self.qline8 = QLineEdit()
-        layout.addRow(QLabel("X axis:"), self.qline8)
+        layout.addRow(QLabel("X axis sensitivity:"), self.qline8)
         self.qline9 = QLineEdit()
-        layout.addRow(QLabel("Y axis:"), self.qline9)
+        layout.addRow(QLabel("Y axis sensitivity:"), self.qline9)
         self.qline10 = QLineEdit()
-        layout.addRow(QLabel("Z axis:"), self.qline10)
+        layout.addRow(QLabel("Z axis sensitivity:"), self.qline10)
         layout.addRow(QLabel("Time of sampling"))
         self.qline11 = QLineEdit()
         layout.addRow(QLabel("Nbr of microseconds:"), self.qline11)
