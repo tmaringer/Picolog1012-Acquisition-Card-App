@@ -7,7 +7,6 @@ First, you need to install Python (found at https://www.python.org/ ).
 pip install pyqt5
 pip install pyqtgraph
 pip install pandas
-pip install matplotlib
 pip install openpyxl
 pip install numpy
 pip install scipy
