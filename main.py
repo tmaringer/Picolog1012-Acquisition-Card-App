@@ -3,6 +3,7 @@ import json
 import sys
 from datetime import datetime
 import time
+import scipy.fftpack
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
@@ -26,7 +27,20 @@ status = {}
 acceldataY = []
 acceldataZ = []
 count1 = 0
-
+listacq = []
+listplot = []
+dict = {"PL1000_CHANNEL_1": np.arange(0), "PL1000_CHANNEL_2": np.arange(0),
+                     "PL1000_CHANNEL_3": np.arange(0), "PL1000_CHANNEL_4": np.arange(0),
+                     "PL1000_CHANNEL_5": np.arange(0), "PL1000_CHANNEL_6": np.arange(0),
+                     "PL1000_CHANNEL_7": np.arange(0), "PL1000_CHANNEL_8": np.arange(0),
+                     "PL1000_CHANNEL_9": np.arange(0), "PL1000_CHANNEL_10": np.arange(0),
+                     "PL1000_CHANNEL_11": np.arange(0)}
+dicttime = {"PL1000_CHANNEL_1": np.arange(0), "PL1000_CHANNEL_2": np.arange(0),
+                 "PL1000_CHANNEL_3": np.arange(0), "PL1000_CHANNEL_4": np.arange(0),
+                 "PL1000_CHANNEL_5": np.arange(0), "PL1000_CHANNEL_6": np.arange(0),
+                 "PL1000_CHANNEL_7": np.arange(0), "PL1000_CHANNEL_8": np.arange(0),
+                 "PL1000_CHANNEL_9": np.arange(0), "PL1000_CHANNEL_10": np.arange(0),
+                 "PL1000_CHANNEL_11": np.arange(0)}
 
 class App(QMainWindow):
 
@@ -36,30 +50,8 @@ class App(QMainWindow):
         self.setWindowIcon(QIcon('icon.png'))
         self.title = 'Picolog 1012 Acquisition Card - Mirmex Motor'
         self.sizeObject = QDesktopWidget().screenGeometry()
-        self.setWindowState(Qt.WindowMaximized)
+        #self.setWindowState(Qt.WindowMaximized)
         self.initUI(self.sizeObject.width(), self.sizeObject.height())
-        self.dataX = np.arange(0)
-        self.dataY = np.arange(0)
-        self.dataZ = np.arange(0)
-        self.dataDCV = np.arange(0)
-        self.dataDCC = np.arange(0)
-        self.dataACV1 = np.arange(0)
-        self.dataACV2 = np.arange(0)
-        self.dataACV3 = np.arange(0)
-        self.dataACC1 = np.arange(0)
-        self.dataACC2 = np.arange(0)
-        self.dataACC3 = np.arange(0)
-        self.countdataX = np.arange(0)
-        self.countdataY = np.arange(0)
-        self.countdataZ = np.arange(0)
-        self.countdataDCV = np.arange(0)
-        self.countdataDCC = np.arange(0)
-        self.countdataACV1 = np.arange(0)
-        self.countdataACV2 = np.arange(0)
-        self.countdataACV3 = np.arange(0)
-        self.countdataACC1 = np.arange(0)
-        self.countdataACC2 = np.arange(0)
-        self.countdataACC3 = np.arange(0)
         self.setLayout(self.layout)
 
     def initUI(self, width, height):
@@ -67,29 +59,55 @@ class App(QMainWindow):
         mainmenu = self.menuBar()
         self.filemenu = mainmenu.addMenu('File')
         editmenu = mainmenu.addMenu('Config')
+        self.toolsmenu = mainmenu.addMenu('Tools')
         # self.viewMenu = mainmenu.addMenu('View')
+        p = QWidget()
+        self.login = QGridLayout()
+        label = QLabel()
+        pixmap = QPixmap("pico.png")
+        pixmap2 = pixmap.scaledToHeight(height - 200)
+        label.setPixmap(pixmap2)
+        self.login.addWidget(label,0,0,9,2)
         self.testbutton = QPushButton('Connection to the Picolog', self)
         self.testbutton.setToolTip('This is an example button')
         self.testbutton.setFixedSize(180, 35)
         self.testbutton.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
         self.testbutton.move(((width - 180) / 2), ((height - 35) / 2))
         self.testbutton.clicked.connect(self.test_connection_pl)
+        self.login.addWidget(self.testbutton,7,2)
+        text = QLabel("Welcome to the \"Picolog 1012 Data Acquisition Card App\". \nDon't forget to connect the accelerometer if necessary and the external power supply.           \nPlease refer to the user manual if in doubt. \n\n-Thibaut Maringer")
+        self.login.addWidget(text,0,2,7,1)
+        p.setLayout(self.login)
+        self.setCentralWidget(p)
         self.plconnection = QAction('Connection to the Picolog', self)
         self.plconnection.triggered.connect(self.test_connection_pl)
         self.filemenu.addAction(self.plconnection)
+        self.numb = QAction('Average, minimum and maximum', self)
+        self.numb.triggered.connect(self.test_connection_pl)
+        self.numb.setDisabled(True)
+        self.toolsmenu.addAction(self.numb)
+        self.gr = QAction('Display better specific plot', self)
+        self.gr.triggered.connect(self.showplotsep)
+        self.gr.setDisabled(True)
+        self.toolsmenu.addAction(self.gr)
+        self.grfft = QAction('Display better specific plot [FFT]', self)
+        self.grfft.triggered.connect(self.showplotsepfft)
+        self.grfft.setDisabled(True)
+        self.toolsmenu.addAction(self.grfft)
         self.configmenu = QAction('Edit configuration file', self)
         self.configmenu.triggered.connect(self.setconfig)
         editmenu.addAction(self.configmenu)
+        self.chanmenu = QAction('Select channels', self)
+        self.chanmenu.triggered.connect(self.setchan)
+        editmenu.addAction(self.chanmenu)
+        self.showdata = QAction('Save data', self)
+        self.showdata.setDisabled(True)
+        self.showdata.triggered.connect(self.showdatatable)
+        self.filemenu.addAction(self.showdata)
         exitButton = QAction(QIcon('exit24.png'), 'Exit', self)
         exitButton.setShortcut('Ctrl+Q')
         exitButton.setStatusTip('Exit application')
         exitButton.triggered.connect(self.close)
-        full = QAction('Fullscreen', self)
-        full.triggered.connect(self.fullscreennow)
-        maxim = QAction('Maximized', self)
-        maxim.triggered.connect(self.maximnow)
-        #self.viewMenu.addAction(full)
-        #self.viewMenu.addAction(maxim)
         self.filemenu.addAction(exitButton)
         self.show()
 
@@ -111,12 +129,34 @@ class App(QMainWindow):
         self.configf.qline9.setText(config1["accelerometer"][0]["Y"])
         self.configf.qline10.setText(config1["accelerometer"][0]["Z"])
         self.configf.qline11.setText(config1["time"][0]["time"])
+    
+    @pyqtSlot()
+    def showplotsep(self):
+        listplot.clear()
+        self.datavalue = DialogValue(0)
+        self.layout.addWidget(self.datavalue)
+        self.datavalue.show()
 
     @pyqtSlot()
+    def setchan(self):
+        chan = SetChannel()
+        self.layout.addWidget(chan)
+        chan.show()
+
+    @pyqtSlot()
+    def showplotsepfft(self):
+        listplot.clear()
+        self.datavalue = DialogValue(1)
+        self.layout.addWidget(self.datavalue)
+        self.datavalue.show()
+    
+    @pyqtSlot()
     def test_connection_pl(self):
+        self.testcon = QTimer()
         try:
             status["openUnit"] = pl.pl1000OpenUnit(ctypes.byref(chandle))
             assert_pico_ok(status["openUnit"])
+            self.testcon.stop()
             self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
             self.statusBar().showMessage('Picolog connected')
             self.testbutton.hide()
@@ -124,15 +164,11 @@ class App(QMainWindow):
             self.all_display()
 
         except:
-            self.statusBar().showMessage('Error while connecting to the Picolog')
-            self.statusBar().setStyleSheet("background-color : red")
-
-    def fullscreennow(self):
-        self.showFullScreen()
-
-    def maximnow(self):
-        self.showMaximized
-        self.setWindowState(Qt.WindowMaximized)
+            self.testcon.setInterval(500)
+            self.testcon.setTimerType(Qt.PreciseTimer)
+            self.b = 1
+            self.testcon.timeout.connect(lambda: self.warning('Error while connecting to the Picolog'))
+            self.testcon.start()
 
     def all_display(self):
         w = QtGui.QWidget()
@@ -171,6 +207,20 @@ class App(QMainWindow):
         self.plotACC.setLabel('bottom', "time", units='s')
         self.plotACC.setYRange(-30, 30)
         self.plotACC.setLabel('left', "ampere", units="A")
+        self.plotX.showGrid(True, True, 0.5)
+        self.plotX.setMenuEnabled(False)
+        self.plotY.showGrid(True, True, 0.5)
+        self.plotY.setMenuEnabled(False)
+        self.plotZ.showGrid(True, True, 0.5)
+        self.plotZ.setMenuEnabled(False)
+        self.plotDCV.showGrid(True, True, 0.5)
+        self.plotDCV.setMenuEnabled(False)
+        self.plotDCC.showGrid(True, True, 0.5)
+        self.plotDCC.setMenuEnabled(False)
+        self.plotACV.showGrid(True, True, 0.5)
+        self.plotACV.setMenuEnabled(False)
+        self.plotACC.showGrid(True, True, 0.5)
+        self.plotACC.setMenuEnabled(False)
         grid = QGridLayout()
         w.setLayout(grid)
         grid.addWidget(self.plotX, 1, 0, 2, 1)
@@ -187,17 +237,19 @@ class App(QMainWindow):
         self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
         self.startplot.setFixedSize(100, 35)
         self.startplot.clicked.connect(self.startview)
-        self.resetplot = QPushButton('Reset plotting', self)
+        self.stopplot = QPushButton('Stop plotting', self)
+        self.stopplot.setToolTip('This is an example button')
+        self.stopplot.setFixedSize(100, 35)
+        self.stopplot.setDisabled(True)
+        self.stopplot.clicked.connect(self.stopview)
+
+        self.resetplot = QPushButton('Delete all', self)
         self.resetplot.setToolTip('This is an example button')
         self.resetplot.setFixedSize(100, 35)
         self.resetplot.setDisabled(True)
-        self.resetplot.clicked.connect(self.resetview)
-        self.showdata = QPushButton('Show and Save data', self)
-        self.showdata.setToolTip('This is an example button')
-        self.showdata.setFixedSize(150, 35)
-        self.showdata.setDisabled(True)
-        self.showdata.clicked.connect(self.showdatatable)
-        butt.addRow(self.resetplot, self.showdata)
+        self.resetplot.clicked.connect(self.deleteview)
+
+        butt.addRow(self.stopplot, self.resetplot)
         layout.addRow(self.startplot, butt)
         grid.addLayout(layout, 7, 0)
 
@@ -215,144 +267,254 @@ class App(QMainWindow):
 
     @pyqtSlot()
     def startview(self):
-        self.update_accel()
-        self.startplot.setDisabled(True)
-        self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
-        self.showdata.setDisabled(False)
-        self.showdata.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
-        self.resetplot.setDisabled(False)
-        self.resetplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        self.gr.setDisabled(True)
+        self.grfft.setDisabled(True)
+        self.test = QTimer()
+        if len(listacq) == 0:
+            self.test.setInterval(500)
+            self.test.setTimerType(Qt.PreciseTimer)
+            self.b = 1
+            self.test.timeout.connect(lambda: self.warning("No channel selected, go to Config > Select channels"))
+            self.test.start()
+        else:
+            self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
+            self.statusBar().showMessage('In progress...')
+            self.test.stop()
+            self.plotX.clear()
+            self.plotY.clear()
+            self.plotZ.clear()
+            self.plotACC.clear()
+            self.plotACV.clear()
+            self.plotDCC.clear()
+            self.plotDCV.clear()
+            dict["PL1000_CHANNEL_9"] = np.arange(0)
+            dict["PL1000_CHANNEL_10"] = np.arange(0)
+            dict["PL1000_CHANNEL_11"] = np.arange(0)
+            dict["PL1000_CHANNEL_2"] = np.arange(0)
+            dict["PL1000_CHANNEL_1"] = np.arange(0)
+            dict["PL1000_CHANNEL_4"] = np.arange(0)
+            dict["PL1000_CHANNEL_6"] = np.arange(0)
+            dict["PL1000_CHANNEL_8"] = np.arange(0)
+            dict["PL1000_CHANNEL_3"] = np.arange(0)
+            dict["PL1000_CHANNEL_5"] = np.arange(0)
+            dict["PL1000_CHANNEL_7"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_9"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_10"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_11"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_2"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_1"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_4"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_6"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_8"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_3"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_5"] = np.arange(0)
+            dicttime["PL1000_CHANNEL_7"] = np.arange(0)
+            self.timer = QTimer()
+            self.timer.setTimerType(Qt.PreciseTimer)
+            # self.timer.setInterval(50)
+            status["SetDo"] = pl.pl1000SetDo(chandle, 1, 1)
+            status["SetDo"] = pl.pl1000SetDo(chandle, 1, 0)
+            self.start = time.time()
+            self.timer.timeout.connect(self.update_accel)
+            self.timer.start()
+            self.startplot.setDisabled(True)
+            self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+            self.showdata.setDisabled(False)
+            self.stopplot.setDisabled(False)
+            self.stopplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+
+    def warning(self, a):
+        if self.b == 1:
+            self.statusBar().showMessage(a)
+            self.statusBar().setStyleSheet("background-color : red; color: #EDF5E1")
+            self.b = 0
+        else:
+            self.statusBar().showMessage(a)
+            self.statusBar().setStyleSheet("background-color : #EDF5E1; color: red")
+            self.b = 1
 
     @pyqtSlot()
-    def resetview(self):
-        self.plotX.clear()
-        self.plotY.clear()
-        self.plotZ.clear()
-        self.plotACC.clear()
-        self.plotACV.clear()
-        self.plotDCC.clear()
-        self.plotDCV.clear()
-        self.dataX = np.arange(0)
-        self.dataY = np.arange(0)
-        self.dataZ = np.arange(0)
-        self.dataDCV = np.arange(0)
-        self.dataDCC = np.arange(0)
-        self.dataACV1 = np.arange(0)
-        self.dataACV2 = np.arange(0)
-        self.dataACV3 = np.arange(0)
-        self.dataACC1 = np.arange(0)
-        self.dataACC2 = np.arange(0)
-        self.dataACC3 = np.arange(0)
-        self.countdataX = np.arange(0)
-        self.countdataY = np.arange(0)
-        self.countdataZ = np.arange(0)
-        self.countdataDCV = np.arange(0)
-        self.countdataDCC = np.arange(0)
-        self.countdataACV1 = np.arange(0)
-        self.countdataACV2 = np.arange(0)
-        self.countdataACV3 = np.arange(0)
-        self.countdataACC1 = np.arange(0)
-        self.countdataACC2 = np.arange(0)
-        self.countdataACC3 = np.arange(0)
-        self.resetplot.setDisabled(True)
-        self.resetplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
-        self.showdata.setDisabled(True)
-        self.showdata.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
-        self.startplot.setDisabled(False)
-        self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
-
-    def update_accel(self):
-        start = datetime.now()
-        start = start.hour * 3600000000 + start.minute * 60000000 + start.second * 1000000 + start.microsecond
-        self.now = datetime.now()
-        self.now = self.now.hour * 3600000000 + self.now.minute * 60000000 + self.now.second * 1000000 + self.now.microsecond
-        status["SetDo"] = pl.pl1000SetDo(chandle, 1, 1)
-        status["SetDo"] = pl.pl1000SetDo(chandle, 1, 0)
-        with open("config.json", "r") as read_file:
-            time = json.load(read_file)
-        while (self.now - start) < int(time["time"][0]["time"]):
-            self.now = datetime.now()
-            self.now = self.now.hour * 3600000000 + self.now.minute * 60000000 + self.now.second * 1000000 + self.now.microsecond
-            self.countdataX, self.dataX = self.measure(self.countdataX, self.dataX, "PL1000_CHANNEL_9", chandle, start)
-            self.countdataY, self.dataY = self.measure(self.countdataY, self.dataY, "PL1000_CHANNEL_10", chandle, start)
-            self.countdataZ, self.dataZ = self.measure(self.countdataZ, self.dataZ, "PL1000_CHANNEL_11", chandle, start)
-            self.countdataDCC, self.dataDCC = self.measure(self.countdataDCC, self.dataDCC, "PL1000_CHANNEL_1", chandle, start)
-            self.countdataDCV, self.dataDCV = self.measure(self.countdataDCV, self.dataDCV, "PL1000_CHANNEL_2", chandle,
-                                                           start)
-            self.countdataACC1, self.dataACC1 = self.measure(self.countdataACC1, self.dataACC1, "PL1000_CHANNEL_3",
-                                                             chandle, start)
-            self.countdataACV1, self.dataACV1 = self.measure(self.countdataACV1, self.dataACV1, "PL1000_CHANNEL_4",
-                                                             chandle, start)
-            self.countdataACC2, self.dataACC2 = self.measure(self.countdataACC2, self.dataACC2, "PL1000_CHANNEL_5",
-                                                             chandle, start)
-            self.countdataACV2, self.dataACV2 = self.measure(self.countdataACV2, self.dataACV2, "PL1000_CHANNEL_6",
-                                                             chandle, start)
-            self.countdataACC3, self.dataACC3 = self.measure(self.countdataACC3, self.dataACC3, "PL1000_CHANNEL_7",
-                                                             chandle, start)
-            self.countdataACV3, self.dataACV3 = self.measure(self.countdataACV3, self.dataACV3, "PL1000_CHANNEL_8",
-                                                             chandle, start)
-        status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
+    def stopview(self):
+        self.gr.setDisabled(False)
+        self.grfft.setDisabled(False)
+        self.stopplot.setDisabled(True)
+        self.stopplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+        self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
+        self.statusBar().showMessage('Stopped')
+        self.showdata.setDisabled(False)
+        self.resetplot.setDisabled(False)
+        self.resetplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        self.timer.stop()
         status["SetDo"] = pl.pl1000SetDo(chandle, 0, 1)
+        status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
         with open("config.json", "r") as read_file:
             config = json.load(read_file)
-        self.plotX.plot(self.countdataX, ((self.dataX/4092*2.5)-(self.dataX[0]/4092*2.5))*1/float(config["accelerometer"][0]["X"]), pen=pg.mkPen('#5CDB95'))
-        self.plotY.plot(self.countdataY, ((self.dataY/4092*2.5)-(self.dataY[0]/4092*2.5))*1/float(config["accelerometer"][0]["Y"]), pen=pg.mkPen('#5CDB95'))
-        self.plotZ.plot(self.countdataZ, ((self.dataZ/4092*2.5)-(self.dataZ[0]/4092*2.5))*1/float(config["accelerometer"][0]["Z"]), pen=pg.mkPen('#5CDB95'))
-        self.dataDCV = (self.dataDCV / 4092) * 60
-        self.plotDCV.plot(self.countdataDCV, self.dataDCV, pen=pg.mkPen('#5CDB95'))
-        self.dataDCC = (((self.dataDCC - int(config["DCcurrent"][0]["offset"]))/4092)*2.5)*2/0.066
-        print(np.mean(self.dataDCC))
-        self.plotDCC.plot(self.countdataDCC, self.dataDCC, pen=pg.mkPen('#5CDB95'))
-        self.dataACV1 = ((self.dataACV1 - int(config["ACvoltage"][0]["offset1"])) / 4092) * 60
-        self.plotACV.plot(self.countdataACV1, self.dataACV1, pen=pg.mkPen('m'))
-        self.dataACV2 = ((self.dataACV2 - int(config["ACvoltage"][0]["offset2"])) / 4092) * 60
-        self.plotACV.plot(self.countdataACV2, self.dataACV2, pen=pg.mkPen('#5CDB95'))
-        self.dataACV3 = ((self.dataACV3 - int(config["ACvoltage"][0]["offset3"])) / 4092) * 60
-        self.plotACV.plot(self.countdataACV3, self.dataACV3, pen=pg.mkPen('#EDF5E1'))
-        self.dataACC1 = ((self.dataACC1 - int(config["ACcurrent"][0]["offset1"])) / 4092) * 5/0.066
-        self.plotACC.plot(self.countdataACC1, self.dataACC1, pen=pg.mkPen('m'))
-        self.dataACC2 = ((self.dataACC2 - int(config["ACcurrent"][0]["offset2"])) / 4092) * 5/0.066
-        self.plotACC.plot(self.countdataACC2, self.dataACC2, pen=pg.mkPen('#5CDB95'))
-        self.dataACC3 = ((self.dataACC3 - int(config["ACcurrent"][0]["offset3"])) / 4092) * 5/0.066
-        self.plotACC.plot(self.countdataACC3, self.dataACC3, pen=pg.mkPen('#EDF5E1'))
+        try:
+            dict["PL1000_CHANNEL_9"] = ((dict["PL1000_CHANNEL_9"] - dict["PL1000_CHANNEL_9"][0]) * 2.5 / 4092) / 0.40
+            self.plotX.plot(dicttime["PL1000_CHANNEL_9"],
+                            dict["PL1000_CHANNEL_9"], pen=pg.mkPen('#5CDB95'))
+        except:
+            pass
+        try:
+            dict["PL1000_CHANNEL_10"] = ((dict["PL1000_CHANNEL_10"] - dict["PL1000_CHANNEL_10"][0]) * 2.5 / 4092) / 0.40
+            self.plotY.plot(dicttime["PL1000_CHANNEL_10"],
+                            dict["PL1000_CHANNEL_10"], pen=pg.mkPen('#5CDB95'))
+        except:
+            pass
+        try:
+            dict["PL1000_CHANNEL_11"] = ((dict["PL1000_CHANNEL_11"] - dict["PL1000_CHANNEL_11"][0]) *2.5 / 4092) / 0.40
+            self.plotZ.plot(dicttime["PL1000_CHANNEL_11"],
+                            dict["PL1000_CHANNEL_11"], pen=pg.mkPen('#5CDB95'))
+        except:
+            pass
+        dict["PL1000_CHANNEL_2"] = (dict["PL1000_CHANNEL_2"] / 4092) * 60.37
+        self.plotDCV.plot(dicttime["PL1000_CHANNEL_2"], dict["PL1000_CHANNEL_2"], pen=pg.mkPen('#5CDB95'))
+        dict["PL1000_CHANNEL_1"] = (((dict["PL1000_CHANNEL_1"] - int(
+            config["DCcurrent"][0]["offset"])) / 4092) * 2.5) * 2 / 0.066
+        self.plotDCC.plot(dicttime["PL1000_CHANNEL_1"], dict["PL1000_CHANNEL_1"], pen=pg.mkPen('#5CDB95'))
+        dict["PL1000_CHANNEL_4"] = ((dict["PL1000_CHANNEL_4"] - int(
+            config["ACvoltage"][0]["offset1"])) / 4092) * 60
+        self.plotACV.plot(dicttime["PL1000_CHANNEL_4"], dict["PL1000_CHANNEL_4"], pen=pg.mkPen('m'))
+        dict["PL1000_CHANNEL_6"] = ((dict["PL1000_CHANNEL_6"] - int(
+            config["ACvoltage"][0]["offset2"])) / 4092) * 2.5 * 102 / 2
+        self.plotACV.plot(dicttime["PL1000_CHANNEL_6"], dict["PL1000_CHANNEL_6"], pen=pg.mkPen('#5CDB95'))
+        dict["PL1000_CHANNEL_8"] = ((dict["PL1000_CHANNEL_8"] - int(
+            config["ACvoltage"][0]["offset3"])) / 4092) * 60
+        self.plotACV.plot(dicttime["PL1000_CHANNEL_8"], dict["PL1000_CHANNEL_8"], pen=pg.mkPen('#EDF5E1'))
+        dict["PL1000_CHANNEL_3"] = ((dict["PL1000_CHANNEL_3"] - int(
+            config["ACcurrent"][0]["offset1"])) / 4092) * 5 / 0.066
+        self.plotACC.plot(dicttime["PL1000_CHANNEL_3"], dict["PL1000_CHANNEL_3"], pen=pg.mkPen('m'))
+        dict["PL1000_CHANNEL_5"] = ((dict["PL1000_CHANNEL_5"] - int(
+            config["ACcurrent"][0]["offset2"])) / 4092) * 5 / 0.066
+        self.plotACC.plot(dicttime["PL1000_CHANNEL_5"], dict["PL1000_CHANNEL_5"], pen=pg.mkPen('#5CDB95'))
+        dict["PL1000_CHANNEL_7"] = ((dict["PL1000_CHANNEL_7"] - int(
+            config["ACcurrent"][0]["offset3"])) / 4092) * 5 / 0.066
+        self.plotACC.plot(dicttime["PL1000_CHANNEL_7"], dict["PL1000_CHANNEL_7"], pen=pg.mkPen('#EDF5E1'))
+        self.plotX.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotY.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotZ.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotDCV.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotDCC.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotACV.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotACC.sigRangeChanged.connect(self.onSigRangeChanged)
+
+    @pyqtSlot()
+    def deleteview(self):
+        self.all_display()
+        self.statusBar().setStyleSheet("background-color : #FFDF00; color: #05386B")
+        self.statusBar().showMessage('All reset')
+        listacq.clear()
+        self.resetplot.setDisabled(True)
+        self.resetplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+        self.startplot.setDisabled(False)
+        self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        self.gr.setDisabled(True)
+        self.grfft.setDisabled(True)
+    def update_accel(self):
+        for i in listacq:
+            dicttime[i], dict[i] = self.measure(dicttime[i], dict[i], i, chandle, self.start)
 
     def measure(self, countdataX, dataX, channel, chandle, start):
         value = ctypes.c_int16()
         status["getSingle"] = pl.pl1000GetSingle(chandle, pl.PL1000Inputs[channel], ctypes.byref(value))
-        self.now = datetime.now()
-        self.now = self.now.hour * 3600000000 + self.now.minute * 60000000 + self.now.second * 1000000 + self.now.microsecond
-        countdataX = np.append(countdataX, [(self.now - start) * 0.000001])
+        countdataX = np.append(countdataX, [(time.time() - start)])
         dataX = np.append(dataX, [(value.value)])
         assert_pico_ok(status["getSingle"])
         return [countdataX, dataX]
+
+    def onSigRangeChanged(self, r):
+        self.plotX.sigRangeChanged.disconnect(self.onSigRangeChanged)
+        self.plotY.sigRangeChanged.disconnect(self.onSigRangeChanged)
+        self.plotZ.sigRangeChanged.disconnect(self.onSigRangeChanged)
+        self.plotDCV.sigRangeChanged.disconnect(self.onSigRangeChanged)
+        self.plotDCC.sigRangeChanged.disconnect(self.onSigRangeChanged)
+        self.plotACV.sigRangeChanged.disconnect(self.onSigRangeChanged)
+        self.plotACC.sigRangeChanged.disconnect(self.onSigRangeChanged)
+        if self.plotX == r:
+            self.plotY.setRange(xRange=r.getAxis('bottom').range)
+            self.plotZ.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCC.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACC.setRange(xRange=r.getAxis('bottom').range)
+        elif self.plotY == r:
+            self.plotX.setRange(xRange=r.getAxis('bottom').range)
+            self.plotZ.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCC.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACC.setRange(xRange=r.getAxis('bottom').range)
+        elif self.plotZ == r:
+            self.plotX.setRange(xRange=r.getAxis('bottom').range)
+            self.plotY.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCC.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACC.setRange(xRange=r.getAxis('bottom').range)
+        elif self.plotDCV == r:
+            self.plotX.setRange(xRange=r.getAxis('bottom').range)
+            self.plotY.setRange(xRange=r.getAxis('bottom').range)
+            self.plotZ.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCC.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACC.setRange(xRange=r.getAxis('bottom').range)
+        elif self.plotDCC == r:
+            self.plotX.setRange(xRange=r.getAxis('bottom').range)
+            self.plotY.setRange(xRange=r.getAxis('bottom').range)
+            self.plotZ.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACC.setRange(xRange=r.getAxis('bottom').range)
+        elif self.plotACV == r:
+            self.plotX.setRange(xRange=r.getAxis('bottom').range)
+            self.plotY.setRange(xRange=r.getAxis('bottom').range)
+            self.plotZ.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCC.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACC.setRange(xRange=r.getAxis('bottom').range)
+        elif self.plotACC == r:
+            self.plotX.setRange(xRange=r.getAxis('bottom').range)
+            self.plotY.setRange(xRange=r.getAxis('bottom').range)
+            self.plotZ.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCV.setRange(xRange=r.getAxis('bottom').range)
+            self.plotDCC.setRange(xRange=r.getAxis('bottom').range)
+            self.plotACV.setRange(xRange=r.getAxis('bottom').range)
+
+        self.plotX.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotY.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotZ.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotDCV.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotDCC.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotACV.sigRangeChanged.connect(self.onSigRangeChanged)
+        self.plotACC.sigRangeChanged.connect(self.onSigRangeChanged)
 
     @pyqtSlot()
     def showdatatable(self):
         self.table = QTableView()
 
         data = np.array([
-            self.countdataX,
-            self.dataX,
-            self.countdataY,
-            self.dataY,
-            self.countdataZ,
-            self.dataZ,
-            self.countdataDCV,
-            self.dataDCV,
-            self.countdataDCC,
-            self.dataDCV,
-            self.countdataACV1,
-            self.dataACV1,
-            self.countdataACV2,
-            self.dataACV2,
-            self.countdataACV3,
-            self.dataACV3,
-            self.countdataACC1,
-            self.dataACC1,
-            self.countdataACC2,
-            self.dataACC2,
-            self.countdataACC3,
-            self.dataACC3,
+            dicttime["PL1000_CHANNEL_9"],
+            dict["PL1000_CHANNEL_9"],
+            dicttime["PL1000_CHANNEL_10"],
+            dict["PL1000_CHANNEL_10"],
+            dicttime["PL1000_CHANNEL_11"],
+            dict["PL1000_CHANNEL_11"],
+            dicttime["PL1000_CHANNEL_2"],
+            dict["PL1000_CHANNEL_2"],
+            dicttime["PL1000_CHANNEL_1"],
+            dict["PL1000_CHANNEL_1"],
+            dicttime["PL1000_CHANNEL_4"],
+            dict["PL1000_CHANNEL_4"],
+            dicttime["PL1000_CHANNEL_6"],
+            dict["PL1000_CHANNEL_6"],
+            dicttime["PL1000_CHANNEL_8"],
+            dict["PL1000_CHANNEL_8"],
+            dicttime["PL1000_CHANNEL_3"],
+            dict["PL1000_CHANNEL_3"],
+            dicttime["PL1000_CHANNEL_5"],
+            dict["PL1000_CHANNEL_5"],
+            dicttime["PL1000_CHANNEL_7"],
+            dict["PL1000_CHANNEL_7"],
         ])
         self.dataex = np.transpose(data)
         self.model = TableModel(self.dataex)
@@ -462,6 +624,215 @@ class DialogConfig(QDialog):
             json.dumps(data, indent=4)
             json.dump(data, outfile)
         self.hide()
+
+class SetChannel(QDialog):
+    NumGridRows = 3
+    NumButtons = 4
+
+    def __init__(self):
+        super(SetChannel, self).__init__()
+        self.createFormGroupBox()
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(self.formGroupBox)
+        self.setLayout(mainLayout)
+
+        self.setWindowTitle("Channels selection")
+
+    def createFormGroupBox(self):
+        self.formGroupBox = QGroupBox("Choose channels")
+        layout = QFormLayout()
+        acq = QFormLayout()
+        self.checkBoxX = QCheckBox("X Axis")
+        self.checkBoxX.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_9", self.checkBoxX.isChecked()))
+        self.checkBoxY = QCheckBox("Y Axis")
+        self.checkBoxY.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_10", self.checkBoxY.isChecked()))
+        self.checkBoxZ = QCheckBox("Z Axis")
+        self.checkBoxZ.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_11", self.checkBoxZ.isChecked()))
+        self.checkBoxDCV = QCheckBox("DC voltage")
+        self.checkBoxDCV.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_2", self.checkBoxDCV.isChecked()))
+        self.checkBoxDCC = QCheckBox("DC current")
+        self.checkBoxDCC.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_1", self.checkBoxDCC.isChecked()))
+        self.checkBoxACV1 = QCheckBox("AC voltage 1")
+        self.checkBoxACV1.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_4", self.checkBoxACV1.isChecked()))
+        self.checkBoxACV2 = QCheckBox("AC voltage 2")
+        self.checkBoxACV2.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_6", self.checkBoxACV2.isChecked()))
+        self.checkBoxACV3 = QCheckBox("AC voltage 3")
+        self.checkBoxACV3.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_8", self.checkBoxACV3.isChecked()))
+        self.checkBoxACC1 = QCheckBox("AC current 1")
+        self.checkBoxACC1.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_3", self.checkBoxACC1.isChecked()))
+        self.checkBoxACC2 = QCheckBox("AC current 2")
+        self.checkBoxACC2.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_5", self.checkBoxACC2.isChecked()))
+        self.checkBoxACC3 = QCheckBox("AC current 3")
+        self.checkBoxACC3.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_7", self.checkBoxACC3.isChecked()))
+        AC1 = QFormLayout()
+        AC1.addRow(self.checkBoxACV1, self.checkBoxACC1)
+        AC2 = QFormLayout()
+        AC2.addRow(self.checkBoxACV2, self.checkBoxACC2)
+        AC3 = QFormLayout()
+        AC3.addRow(self.checkBoxACV3, self.checkBoxACC3)
+        acq.addRow(self.checkBoxX, AC1)
+        acq.addRow(self.checkBoxY, AC2)
+        acq.addRow(self.checkBoxZ, AC3)
+        acq.addRow(self.checkBoxDCV, self.checkBoxDCC)
+        layout.addRow(acq)
+        self.formGroupBox.setLayout(layout)
+
+    def checkBoxChangedAction(self, channel, state):
+        if state == True:
+            listacq.append(channel)
+        else:
+            listacq.remove(channel)
+
+class DialogValue(QDialog):
+    NumGridRows = 3
+    NumButtons = 4
+
+    def __init__(self, fft):
+        super(DialogValue, self).__init__()
+        self.createFormGroupBox()
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(self.formGroupBox)
+        self.setLayout(mainLayout)
+        self.fft = fft
+        self.setWindowTitle("Configuration")
+
+    def createFormGroupBox(self):
+        self.formGroupBox = QGroupBox("Show detailed plots")
+        layout = QFormLayout()
+        acq = QFormLayout()
+        self.checkBoxX = QCheckBox("X Axis")
+        self.checkBoxX.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_9", self.checkBoxX.isChecked()))
+        self.checkBoxY = QCheckBox("Y Axis")
+        self.checkBoxY.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_10", self.checkBoxY.isChecked()))
+        self.checkBoxZ = QCheckBox("Z Axis")
+        self.checkBoxZ.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_11", self.checkBoxZ.isChecked()))
+        self.checkBoxDCV = QCheckBox("DC voltage")
+        self.checkBoxDCV.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_2", self.checkBoxDCV.isChecked()))
+        self.checkBoxDCC = QCheckBox("DC current")
+        self.checkBoxDCC.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_1", self.checkBoxDCC.isChecked()))
+        self.checkBoxACV1= QCheckBox("AC voltage 1")
+        self.checkBoxACV1.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_4", self.checkBoxACV1.isChecked()))
+        self.checkBoxACV2 = QCheckBox("AC voltage 2")
+        self.checkBoxACV2.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_6", self.checkBoxACV2.isChecked()))
+        self.checkBoxACV3 = QCheckBox("AC voltage 3")
+        self.checkBoxACV3.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_8", self.checkBoxACV3.isChecked()))
+        self.checkBoxACC1 = QCheckBox("AC current 1")
+        self.checkBoxACC1.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_3", self.checkBoxACC1.isChecked()))
+        self.checkBoxACC2 = QCheckBox("AC current 2")
+        self.checkBoxACC2.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_5", self.checkBoxACC2.isChecked()))
+        self.checkBoxACC3 = QCheckBox("AC current 3")
+        self.checkBoxACC3.stateChanged.connect(
+            lambda: self.checkBoxChangedAction("PL1000_CHANNEL_7", self.checkBoxACC3.isChecked()))
+        AC1 = QFormLayout()
+        AC1.addRow(self.checkBoxACV1, self.checkBoxACC1)
+        AC2 = QFormLayout()
+        AC2.addRow(self.checkBoxACV2, self.checkBoxACC2)
+        AC3 = QFormLayout()
+        AC3.addRow(self.checkBoxACV3, self.checkBoxACC3)
+        acq.addRow(self.checkBoxX, AC1)
+        acq.addRow(self.checkBoxY, AC2)
+        acq.addRow(self.checkBoxZ, AC3)
+        acq.addRow(self.checkBoxDCV, self.checkBoxDCC)
+        layout.addRow(acq)
+        save = QPushButton("Show plots separately")
+        save.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        save.clicked.connect(lambda: self.showdata(self.fft))
+        layout.addRow(QLabel(" "), QLabel(" "))
+        layout.addRow(QLabel(" "), save)
+        self.formGroupBox.setLayout(layout)
+
+    def checkBoxChangedAction(self, channel, state):
+        if state == True:
+            listplot.append(channel)
+        else:
+            listplot.remove(channel)
+
+    @pyqtSlot()
+    def showdata(self, fft):
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        for i in listplot:
+            if fft == 0:
+                dataplot = DialogPlot(i)
+            else:
+                dataplot = DialogPlotFFT(i,0)
+                dataplot1 = DialogPlotFFT(i, 1)
+                layout.addWidget(dataplot1)
+                dataplot1.show()
+            layout.addWidget(dataplot)
+            dataplot.show()
+        self.hide()
+
+
+class DialogPlot(QWidget):
+
+    def __init__(self, channel):
+        super(DialogPlot, self).__init__()
+        self.channel = channel
+        self.graphWidget = pg.PlotWidget()
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        layout.addWidget(self.graphWidget)
+        self.graphWidget.showGrid(True, True, 0.5)
+        self.graphWidget.setMenuEnabled(False)
+        self.setWindowTitle(channel)
+        self.graphWidget.plot(dicttime[channel], dict[channel], pen=pg.mkPen('#5CDB95'))
+
+class DialogPlotFFT(QWidget):
+
+    def __init__(self, channel, i):
+        super(DialogPlotFFT, self).__init__()
+        self.channel = channel
+        self.graphWidget = pg.PlotWidget()
+        layout = QVBoxLayout()
+        self.setLayout(layout)
+        layout.addWidget(self.graphWidget)
+        if i == 0:
+            self.setWindowTitle(channel + ' - signal with reverse FFT')
+        else:
+            self.setWindowTitle(channel + '- FFT')
+        N = len(dict[channel])
+        T = (dicttime[channel][-1] - dicttime[channel][0])/len(dict[channel])
+        y = dict[channel]
+        sig_fft = scipy.fft(y)
+        sample_freq = scipy.fftpack.fftfreq(N, T)
+        xf = np.linspace(0.0, 1.0 / (2.0 * T), int(N/2))
+        power = np.abs(sig_fft)
+        pos_mask = np.where(sample_freq > 0)
+        freqs = sample_freq[pos_mask]
+        peak_freq = freqs[power[pos_mask].argmax()]
+        high_freq_fft = sig_fft.copy()
+        high_freq_fft[np.abs(sample_freq) > peak_freq] = 0
+        filtered_sig = np.real_if_close(scipy.fftpack.ifft(high_freq_fft))
+        self.graphWidget.showGrid(True, True, 0.5)
+        self.graphWidget.setMenuEnabled(False)
+        if i == 0:
+            self.graphWidget.plot(dicttime[channel], filtered_sig, pen=pg.mkPen('m'))
+            self.graphWidget.plot(dicttime[channel], dict[channel], pen=pg.mkPen('#5CDB95'))
+        else:
+            self.graphWidget.plot(sample_freq, power
+                                  , pen=pg.mkPen('#5CDB95'))
 
 
 class TableModel(QAbstractTableModel):
