@@ -10,6 +10,7 @@ pip install pandas
 pip install matplotlib
 pip install openpyxl
 pip install numpy
+pip install scipy
 ```
 ## The application
 All the results are displayed in 7 graphs: the three axis of the accelerometer, the DC power supply voltage and current, the AC phases voltages and currents.<br><br>
