@@ -11,7 +11,6 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-
 from picosdk.functions import assert_pico_ok
 from picosdk.pl1000 import pl1000 as pl
 
@@ -24,23 +23,27 @@ pg.setConfigOption('background', '#05386B')
 pg.setConfigOption('foreground', '#5CDB95')
 chandle = ctypes.c_int16()
 status = {}
-acceldataY = []
-acceldataZ = []
-count1 = 0
 listacq = []
 listplot = []
-dict = {"PL1000_CHANNEL_1": np.arange(0), "PL1000_CHANNEL_2": np.arange(0),
-                     "PL1000_CHANNEL_3": np.arange(0), "PL1000_CHANNEL_4": np.arange(0),
-                     "PL1000_CHANNEL_5": np.arange(0), "PL1000_CHANNEL_6": np.arange(0),
-                     "PL1000_CHANNEL_7": np.arange(0), "PL1000_CHANNEL_8": np.arange(0),
-                     "PL1000_CHANNEL_9": np.arange(0), "PL1000_CHANNEL_10": np.arange(0),
-                     "PL1000_CHANNEL_11": np.arange(0)}
+dictvalue = {"PL1000_CHANNEL_1": np.arange(0), "PL1000_CHANNEL_2": np.arange(0),
+        "PL1000_CHANNEL_3": np.arange(0), "PL1000_CHANNEL_4": np.arange(0),
+        "PL1000_CHANNEL_5": np.arange(0), "PL1000_CHANNEL_6": np.arange(0),
+        "PL1000_CHANNEL_7": np.arange(0), "PL1000_CHANNEL_8": np.arange(0),
+        "PL1000_CHANNEL_9": np.arange(0), "PL1000_CHANNEL_10": np.arange(0),
+        "PL1000_CHANNEL_11": np.arange(0)}
 dicttime = {"PL1000_CHANNEL_1": np.arange(0), "PL1000_CHANNEL_2": np.arange(0),
-                 "PL1000_CHANNEL_3": np.arange(0), "PL1000_CHANNEL_4": np.arange(0),
-                 "PL1000_CHANNEL_5": np.arange(0), "PL1000_CHANNEL_6": np.arange(0),
-                 "PL1000_CHANNEL_7": np.arange(0), "PL1000_CHANNEL_8": np.arange(0),
-                 "PL1000_CHANNEL_9": np.arange(0), "PL1000_CHANNEL_10": np.arange(0),
-                 "PL1000_CHANNEL_11": np.arange(0)}
+            "PL1000_CHANNEL_3": np.arange(0), "PL1000_CHANNEL_4": np.arange(0),
+            "PL1000_CHANNEL_5": np.arange(0), "PL1000_CHANNEL_6": np.arange(0),
+            "PL1000_CHANNEL_7": np.arange(0), "PL1000_CHANNEL_8": np.arange(0),
+            "PL1000_CHANNEL_9": np.arange(0), "PL1000_CHANNEL_10": np.arange(0),
+            "PL1000_CHANNEL_11": np.arange(0)}
+dictinfo = {"PL1000_CHANNEL_1": ["A", "DC current"], "PL1000_CHANNEL_2": ["V", "DC voltage"],
+            "PL1000_CHANNEL_3": ["A", "AC current 1"], "PL1000_CHANNEL_4": ["V", "AC voltage 1"],
+            "PL1000_CHANNEL_5": ["A", "AC current 2"], "PL1000_CHANNEL_6": ["V", "AC voltage 2"],
+            "PL1000_CHANNEL_7": ["A", "AC current 3"], "PL1000_CHANNEL_8": ["V", "AC voltage 3"],
+            "PL1000_CHANNEL_9": ["m/s2", "X axis"], "PL1000_CHANNEL_10": ["m/s2", "Y axis"],
+            "PL1000_CHANNEL_11": ["m/s2", "Z axis"]}
+
 
 class App(QMainWindow):
 
@@ -50,7 +53,7 @@ class App(QMainWindow):
         self.setWindowIcon(QIcon('icon.png'))
         self.title = 'Picolog 1012 Acquisition Card - Mirmex Motor'
         self.sizeObject = QDesktopWidget().screenGeometry()
-        #self.setWindowState(Qt.WindowMaximized)
+        self.setWindowState(Qt.WindowMaximized)
         self.initUI(self.sizeObject.width(), self.sizeObject.height())
         self.setLayout(self.layout)
 
@@ -60,30 +63,31 @@ class App(QMainWindow):
         self.filemenu = mainmenu.addMenu('File')
         editmenu = mainmenu.addMenu('Config')
         self.toolsmenu = mainmenu.addMenu('Tools')
-        # self.viewMenu = mainmenu.addMenu('View')
         p = QWidget()
         self.login = QGridLayout()
         label = QLabel()
         pixmap = QPixmap("pico.png")
         pixmap2 = pixmap.scaledToHeight(height - 200)
         label.setPixmap(pixmap2)
-        self.login.addWidget(label,0,0,9,2)
+        self.login.addWidget(label, 0, 0, 9, 1, Qt.AlignRight)
+        text = QLabel(
+            "Welcome to the \"Picolog 1012 Data Acquisition Card App\". \nDon't forget to connect the accelerometer if necessary \nand the external power supply.\nPlease refer to the user manual if in doubt. \n\n-Thibaut Maringer")
+        text.setFont(QFont('Arial', 15))
+        self.login.addWidget(text, 0, 1, 7, 1, Qt.AlignLeft)
         self.testbutton = QPushButton('Connection to the Picolog', self)
-        self.testbutton.setToolTip('This is an example button')
+
         self.testbutton.setFixedSize(180, 35)
         self.testbutton.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
         self.testbutton.move(((width - 180) / 2), ((height - 35) / 2))
         self.testbutton.clicked.connect(self.test_connection_pl)
-        self.login.addWidget(self.testbutton,7,2)
-        text = QLabel("Welcome to the \"Picolog 1012 Data Acquisition Card App\". \nDon't forget to connect the accelerometer if necessary and the external power supply.           \nPlease refer to the user manual if in doubt. \n\n-Thibaut Maringer")
-        self.login.addWidget(text,0,2,7,1)
+        self.login.addWidget(self.testbutton, 7, 1, Qt.AlignLeft)
         p.setLayout(self.login)
         self.setCentralWidget(p)
         self.plconnection = QAction('Connection to the Picolog', self)
         self.plconnection.triggered.connect(self.test_connection_pl)
         self.filemenu.addAction(self.plconnection)
-        self.numb = QAction('Average, minimum and maximum', self)
-        self.numb.triggered.connect(self.test_connection_pl)
+        self.numb = QAction('Mean, minimum and maximum', self)
+        self.numb.triggered.connect(self.showintvalue)
         self.numb.setDisabled(True)
         self.toolsmenu.addAction(self.numb)
         self.gr = QAction('Display better specific plot', self)
@@ -97,6 +101,10 @@ class App(QMainWindow):
         self.configmenu = QAction('Edit configuration file', self)
         self.configmenu.triggered.connect(self.setconfig)
         editmenu.addAction(self.configmenu)
+        self.singlemenu = QAction('Single mode', self)
+        self.singlemenu.triggered.connect(self.single_display)
+        self.singlemenu.setDisabled(True)
+        editmenu.addAction(self.singlemenu)
         self.chanmenu = QAction('Select channels', self)
         self.chanmenu.triggered.connect(self.setchan)
         editmenu.addAction(self.chanmenu)
@@ -128,8 +136,7 @@ class App(QMainWindow):
         self.configf.qline8.setText(config1["accelerometer"][0]["X"])
         self.configf.qline9.setText(config1["accelerometer"][0]["Y"])
         self.configf.qline10.setText(config1["accelerometer"][0]["Z"])
-        self.configf.qline11.setText(config1["time"][0]["time"])
-    
+
     @pyqtSlot()
     def showplotsep(self):
         listplot.clear()
@@ -142,6 +149,28 @@ class App(QMainWindow):
         chan = SetChannel()
         self.layout.addWidget(chan)
         chan.show()
+        if "PL1000_CHANNEL_9" in listacq:
+            chan.checkBoxX.setChecked(True)
+        if "PL1000_CHANNEL_10" in listacq:
+            chan.checkBoxY.setChecked(True)
+        if "PL1000_CHANNEL_11" in listacq:
+            chan.checkBoxZ.setChecked(True)
+        if "PL1000_CHANNEL_1" in listacq:
+            chan.checkBoxDCC.setChecked(True)
+        if "PL1000_CHANNEL_2" in listacq:
+            chan.checkBoxDCV.setChecked(True)
+        if "PL1000_CHANNEL_3" in listacq:
+            chan.checkBoxACC1.setChecked(True)
+        if "PL1000_CHANNEL_4" in listacq:
+            chan.checkBoxACV1.setChecked(True)
+        if "PL1000_CHANNEL_5" in listacq:
+            chan.checkBoxACC2.setChecked(True)
+        if "PL1000_CHANNEL_6" in listacq:
+            chan.checkBoxACV2.setChecked(True)
+        if "PL1000_CHANNEL_7" in listacq:
+            chan.checkBoxACC3.setChecked(True)
+        if "PL1000_CHANNEL_8" in listacq:
+            chan.checkBoxACV3.setChecked(True)
 
     @pyqtSlot()
     def showplotsepfft(self):
@@ -149,7 +178,13 @@ class App(QMainWindow):
         self.datavalue = DialogValue(1)
         self.layout.addWidget(self.datavalue)
         self.datavalue.show()
-    
+
+    @pyqtSlot()
+    def showintvalue(self):
+        datavalue = DialogIntValue()
+        self.layout.addWidget(datavalue)
+        datavalue.show()
+
     @pyqtSlot()
     def test_connection_pl(self):
         self.testcon = QTimer()
@@ -159,8 +194,6 @@ class App(QMainWindow):
             self.testcon.stop()
             self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
             self.statusBar().showMessage('Picolog connected')
-            self.testbutton.hide()
-            self.plconnection.setDisabled(True)
             self.all_display()
 
         except:
@@ -172,21 +205,24 @@ class App(QMainWindow):
 
     def all_display(self):
         w = QtGui.QWidget()
+        self.single = 0
+        self.singlemenu.setText("Single mode")
+        self.singlemenu.triggered.connect(self.single_display)
         self.plotX = pg.PlotWidget()
         self.plotY = pg.PlotWidget()
         self.plotZ = pg.PlotWidget()
         self.plotX.setTitle('X axis')
         self.plotX.setLabel('bottom', "time", units='s')
         self.plotX.setYRange(-16, 16)
-        self.plotX.setLabel('left', "acceleration", units="g")
+        self.plotX.setLabel('left', "acceleration", units="m/s2")
         self.plotY.setTitle('Y axis')
         self.plotY.setLabel('bottom', "time", units='s')
         self.plotY.setYRange(-16, 16)
-        self.plotY.setLabel('left', "acceleration", units="g")
+        self.plotY.setLabel('left', "acceleration", units="m/s2")
         self.plotZ.setTitle('Z axis')
         self.plotZ.setLabel('bottom', "time", units='s')
         self.plotZ.setYRange(-16, 16)
-        self.plotZ.setLabel('left', "acceleration", units="g")
+        self.plotZ.setLabel('left', "acceleration", units="m/s2")
         self.plotDCV = pg.PlotWidget()
         self.plotDCV.setTitle('Power supply voltage')
         self.plotDCV.setLabel('bottom', "time", units='s')
@@ -238,13 +274,11 @@ class App(QMainWindow):
         self.startplot.setFixedSize(100, 35)
         self.startplot.clicked.connect(self.startview)
         self.stopplot = QPushButton('Stop plotting', self)
-        self.stopplot.setToolTip('This is an example button')
         self.stopplot.setFixedSize(100, 35)
         self.stopplot.setDisabled(True)
         self.stopplot.clicked.connect(self.stopview)
 
         self.resetplot = QPushButton('Delete all', self)
-        self.resetplot.setToolTip('This is an example button')
         self.resetplot.setFixedSize(100, 35)
         self.resetplot.setDisabled(True)
         self.resetplot.clicked.connect(self.deleteview)
@@ -264,11 +298,67 @@ class App(QMainWindow):
         butt1.addRow(self.leg2, self.leg3)
         layout1.addRow(self.leg1, butt1)
         grid.addLayout(layout1, 7, 1)
+        self.switch = QPushButton("Start motor")
+        self.switch.clicked.connect(self.motor)
+        self.switch.setFixedSize(100, 35)
+        self.switch.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        grid.addWidget(self.switch, 7, 5, Qt.AlignRight)
+
+    def single_display(self):
+        w = QtGui.QWidget()
+        self.single = 1
+        self.singlemenu.setText("Multi mode")
+        self.singlemenu.triggered.connect(self.all_display)
+        self.plotChan = pg.PlotWidget()
+        self.plotChan.setTitle('Single channel')
+        self.plotChan.setLabel('bottom', "time", units='s')
+        self.plotChan.setYRange(-16, 16)
+        self.plotChan.showGrid(True, True, 0.5)
+        self.plotChan.setMenuEnabled(False)
+        grid = QGridLayout()
+        w.setLayout(grid)
+        grid.addWidget(self.plotChan, 1, 0, 6, 6)
+        self.setCentralWidget(w)
+        butt = QFormLayout()
+        layout = QFormLayout()
+        self.startplot_single = QPushButton('Start plotting', self)
+        self.startplot_single.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        self.startplot_single.setFixedSize(100, 35)
+        self.startplot_single.clicked.connect(self.startview_single)
+        self.stopplot_single = QPushButton('Stop plotting', self)
+        self.stopplot_single.setFixedSize(100, 35)
+        self.stopplot_single.setDisabled(True)
+        #self.stopplot.clicked.connect(self.stopview_single)
+        self.resetplot_single = QPushButton('Delete all', self)
+        self.resetplot_single.setFixedSize(100, 35)
+        self.resetplot_single.setDisabled(True)
+        #self.resetplot.clicked.connect(self.deleteview_single)
+
+        butt.addRow(self.stopplot, self.resetplot)
+        layout.addRow(self.startplot, butt)
+        grid.addLayout(layout, 7, 0)
+        self.switch = QPushButton("Start motor")
+        self.switch.clicked.connect(self.motor)
+        self.switch.setFixedSize(100, 35)
+        self.switch.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        grid.addWidget(self.switch, 7, 5, Qt.AlignRight)
+
+    @pyqtSlot()
+    def motor(self):
+        if self.switch.text() == "Start motor":
+            self.switch.setText("Stop motor")
+            status["SetDo"] = pl.pl1000SetDo(chandle, 1, 1)
+            self.switch.setStyleSheet('QPushButton {background-color: #FFDF00; color: #05386B;}')
+        else:
+            self.switch.setText("Start motor")
+            status["SetDo"] = pl.pl1000SetDo(chandle, 0, 1)
+            self.switch.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
 
     @pyqtSlot()
     def startview(self):
         self.gr.setDisabled(True)
         self.grfft.setDisabled(True)
+        self.numb.setDisabled(True)
         self.test = QTimer()
         if len(listacq) == 0:
             self.test.setInterval(500)
@@ -277,9 +367,9 @@ class App(QMainWindow):
             self.test.timeout.connect(lambda: self.warning("No channel selected, go to Config > Select channels"))
             self.test.start()
         else:
+            self.test.stop()
             self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
             self.statusBar().showMessage('In progress...')
-            self.test.stop()
             self.plotX.clear()
             self.plotY.clear()
             self.plotZ.clear()
@@ -287,17 +377,17 @@ class App(QMainWindow):
             self.plotACV.clear()
             self.plotDCC.clear()
             self.plotDCV.clear()
-            dict["PL1000_CHANNEL_9"] = np.arange(0)
-            dict["PL1000_CHANNEL_10"] = np.arange(0)
-            dict["PL1000_CHANNEL_11"] = np.arange(0)
-            dict["PL1000_CHANNEL_2"] = np.arange(0)
-            dict["PL1000_CHANNEL_1"] = np.arange(0)
-            dict["PL1000_CHANNEL_4"] = np.arange(0)
-            dict["PL1000_CHANNEL_6"] = np.arange(0)
-            dict["PL1000_CHANNEL_8"] = np.arange(0)
-            dict["PL1000_CHANNEL_3"] = np.arange(0)
-            dict["PL1000_CHANNEL_5"] = np.arange(0)
-            dict["PL1000_CHANNEL_7"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_9"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_10"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_11"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_2"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_1"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_4"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_6"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_8"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_3"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_5"] = np.arange(0)
+            dictvalue["PL1000_CHANNEL_7"] = np.arange(0)
             dicttime["PL1000_CHANNEL_9"] = np.arange(0)
             dicttime["PL1000_CHANNEL_10"] = np.arange(0)
             dicttime["PL1000_CHANNEL_11"] = np.arange(0)
@@ -311,17 +401,50 @@ class App(QMainWindow):
             dicttime["PL1000_CHANNEL_7"] = np.arange(0)
             self.timer = QTimer()
             self.timer.setTimerType(Qt.PreciseTimer)
-            # self.timer.setInterval(50)
-            status["SetDo"] = pl.pl1000SetDo(chandle, 1, 1)
             status["SetDo"] = pl.pl1000SetDo(chandle, 1, 0)
-            self.start = time.time()
             self.timer.timeout.connect(self.update_accel)
-            self.timer.start()
             self.startplot.setDisabled(True)
             self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
             self.showdata.setDisabled(False)
             self.stopplot.setDisabled(False)
             self.stopplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+            self.timer.start()
+
+    @pyqtSlot()
+    def startview_single(self):
+        self.gr.setDisabled(True)
+        self.grfft.setDisabled(True)
+        self.numb.setDisabled(True)
+        self.test = QTimer()
+        if len(listacq) == 0:
+            self.test.setInterval(500)
+            self.test.setTimerType(Qt.PreciseTimer)
+            self.b = 1
+            self.test.timeout.connect(lambda: self.warning("No channel selected, go to Config > Select channels"))
+            self.test.start()
+        else:
+            self.test.stop()
+            self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
+            self.statusBar().showMessage('In progress...')
+            self.plotChan.clear()
+            self.plotChanData = np.arange(0)
+            self.timer_single = QTimer()
+            self.timer_single.setTimerType(Qt.PreciseTimer)
+            status["SetDo"] = pl.pl1000SetDo(chandle, 1, 0)
+            self.timer_single.timeout.connect(self.update_accel_single)
+            self.startplot_single.setDisabled(True)
+            self.startplot_single.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+            self.showdata_single.setDisabled(False)
+            self.stopplot_single.setDisabled(False)
+            self.stopplot_single.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+            self.usForBlock = ctypes.c_uint32(100000)
+            self.noOfValues = ctypes.c_uint32(10000)
+            channels = ctypes.c_int16(9)
+            status["setInterval"] = pl.pl1000SetInterval(chandle, ctypes.byref(self.usForBlock), self.noOfValues,
+                                                         ctypes.byref(channels), 1)
+            assert_pico_ok(status["setInterval"])
+            self.mode = pl.PL1000_BLOCK_METHOD["BM_STREAM"]
+            self.timer_single.start()
 
     def warning(self, a):
         if self.b == 1:
@@ -335,8 +458,10 @@ class App(QMainWindow):
 
     @pyqtSlot()
     def stopview(self):
+        self.timer.stop()
         self.gr.setDisabled(False)
         self.grfft.setDisabled(False)
+        self.numb.setDisabled(False)
         self.stopplot.setDisabled(True)
         self.stopplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
         self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
@@ -344,52 +469,61 @@ class App(QMainWindow):
         self.showdata.setDisabled(False)
         self.resetplot.setDisabled(False)
         self.resetplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
-        self.timer.stop()
-        status["SetDo"] = pl.pl1000SetDo(chandle, 0, 1)
         status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
         with open("config.json", "r") as read_file:
             config = json.load(read_file)
+        l = dicttime[listacq[0]][0]
+        for i in listacq:
+            dicttime[i] = dicttime[i] - l
+        self.g = QLabel("speed: " + str(int(len(dictvalue[listacq[0]])/(dicttime[listacq[0]][-1] - dicttime[listacq[0]][0]))) + " S/s    ")
+        self.g.setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
+        self.statusBar().addPermanentWidget(self.g)
         try:
-            dict["PL1000_CHANNEL_9"] = ((dict["PL1000_CHANNEL_9"] - dict["PL1000_CHANNEL_9"][0]) * 2.5 / 4092) / 0.40
+            dictvalue["PL1000_CHANNEL_9"] = ((dictvalue["PL1000_CHANNEL_9"] - dictvalue["PL1000_CHANNEL_9"][
+                0]) * 2.5 / 4092) * 9.81 / float(
+                config["accelerometer"][0]["X"])
             self.plotX.plot(dicttime["PL1000_CHANNEL_9"],
-                            dict["PL1000_CHANNEL_9"], pen=pg.mkPen('#5CDB95'))
+                            dictvalue["PL1000_CHANNEL_9"], pen=pg.mkPen('#5CDB95'))
         except:
             pass
         try:
-            dict["PL1000_CHANNEL_10"] = ((dict["PL1000_CHANNEL_10"] - dict["PL1000_CHANNEL_10"][0]) * 2.5 / 4092) / 0.40
+            dictvalue["PL1000_CHANNEL_10"] = ((dictvalue["PL1000_CHANNEL_10"] - dictvalue["PL1000_CHANNEL_10"][
+                0]) * 2.5 / 4092) * 9.81 / float(
+                config["accelerometer"][0]["Y"])
             self.plotY.plot(dicttime["PL1000_CHANNEL_10"],
-                            dict["PL1000_CHANNEL_10"], pen=pg.mkPen('#5CDB95'))
+                            dictvalue["PL1000_CHANNEL_10"], pen=pg.mkPen('#5CDB95'))
         except:
             pass
         try:
-            dict["PL1000_CHANNEL_11"] = ((dict["PL1000_CHANNEL_11"] - dict["PL1000_CHANNEL_11"][0]) *2.5 / 4092) / 0.40
+            dictvalue["PL1000_CHANNEL_11"] = ((dictvalue["PL1000_CHANNEL_11"] - dictvalue["PL1000_CHANNEL_11"][
+                0]) * 2.5 / 4092) * 9.81 / float(
+                config["accelerometer"][0]["Z"])
             self.plotZ.plot(dicttime["PL1000_CHANNEL_11"],
-                            dict["PL1000_CHANNEL_11"], pen=pg.mkPen('#5CDB95'))
+                            dictvalue["PL1000_CHANNEL_11"], pen=pg.mkPen('#5CDB95'))
         except:
             pass
-        dict["PL1000_CHANNEL_2"] = (dict["PL1000_CHANNEL_2"] / 4092) * 60.37
-        self.plotDCV.plot(dicttime["PL1000_CHANNEL_2"], dict["PL1000_CHANNEL_2"], pen=pg.mkPen('#5CDB95'))
-        dict["PL1000_CHANNEL_1"] = (((dict["PL1000_CHANNEL_1"] - int(
+        dictvalue["PL1000_CHANNEL_2"] = (dictvalue["PL1000_CHANNEL_2"] / 4092) * 60.37
+        self.plotDCV.plot(dicttime["PL1000_CHANNEL_2"], dictvalue["PL1000_CHANNEL_2"], pen=pg.mkPen('#5CDB95'))
+        dictvalue["PL1000_CHANNEL_1"] = (((dictvalue["PL1000_CHANNEL_1"] - int(
             config["DCcurrent"][0]["offset"])) / 4092) * 2.5) * 2 / 0.066
-        self.plotDCC.plot(dicttime["PL1000_CHANNEL_1"], dict["PL1000_CHANNEL_1"], pen=pg.mkPen('#5CDB95'))
-        dict["PL1000_CHANNEL_4"] = ((dict["PL1000_CHANNEL_4"] - int(
-            config["ACvoltage"][0]["offset1"])) / 4092) * 60
-        self.plotACV.plot(dicttime["PL1000_CHANNEL_4"], dict["PL1000_CHANNEL_4"], pen=pg.mkPen('m'))
-        dict["PL1000_CHANNEL_6"] = ((dict["PL1000_CHANNEL_6"] - int(
+        self.plotDCC.plot(dicttime["PL1000_CHANNEL_1"], dictvalue["PL1000_CHANNEL_1"], pen=pg.mkPen('#5CDB95'))
+        dictvalue["PL1000_CHANNEL_4"] = (((dictvalue["PL1000_CHANNEL_4"]/ 4092) * 102/2) - ((np.amin(dictvalue["PL1000_CHANNEL_4"])/ 4092) * 102/2))
+        self.plotACV.plot(dicttime["PL1000_CHANNEL_4"], dictvalue["PL1000_CHANNEL_4"], pen=pg.mkPen('m'))
+        dictvalue["PL1000_CHANNEL_6"] = ((dictvalue["PL1000_CHANNEL_6"] - int(
             config["ACvoltage"][0]["offset2"])) / 4092) * 2.5 * 102 / 2
-        self.plotACV.plot(dicttime["PL1000_CHANNEL_6"], dict["PL1000_CHANNEL_6"], pen=pg.mkPen('#5CDB95'))
-        dict["PL1000_CHANNEL_8"] = ((dict["PL1000_CHANNEL_8"] - int(
+        self.plotACV.plot(dicttime["PL1000_CHANNEL_6"], dictvalue["PL1000_CHANNEL_6"], pen=pg.mkPen('#5CDB95'))
+        dictvalue["PL1000_CHANNEL_8"] = ((dictvalue["PL1000_CHANNEL_8"] - int(
             config["ACvoltage"][0]["offset3"])) / 4092) * 60
-        self.plotACV.plot(dicttime["PL1000_CHANNEL_8"], dict["PL1000_CHANNEL_8"], pen=pg.mkPen('#EDF5E1'))
-        dict["PL1000_CHANNEL_3"] = ((dict["PL1000_CHANNEL_3"] - int(
+        self.plotACV.plot(dicttime["PL1000_CHANNEL_8"], dictvalue["PL1000_CHANNEL_8"], pen=pg.mkPen('#EDF5E1'))
+        dictvalue["PL1000_CHANNEL_3"] = ((dictvalue["PL1000_CHANNEL_3"] - int(
             config["ACcurrent"][0]["offset1"])) / 4092) * 5 / 0.066
-        self.plotACC.plot(dicttime["PL1000_CHANNEL_3"], dict["PL1000_CHANNEL_3"], pen=pg.mkPen('m'))
-        dict["PL1000_CHANNEL_5"] = ((dict["PL1000_CHANNEL_5"] - int(
+        self.plotACC.plot(dicttime["PL1000_CHANNEL_3"], dictvalue["PL1000_CHANNEL_3"], pen=pg.mkPen('m'))
+        dictvalue["PL1000_CHANNEL_5"] = ((dictvalue["PL1000_CHANNEL_5"] - int(
             config["ACcurrent"][0]["offset2"])) / 4092) * 5 / 0.066
-        self.plotACC.plot(dicttime["PL1000_CHANNEL_5"], dict["PL1000_CHANNEL_5"], pen=pg.mkPen('#5CDB95'))
-        dict["PL1000_CHANNEL_7"] = ((dict["PL1000_CHANNEL_7"] - int(
+        self.plotACC.plot(dicttime["PL1000_CHANNEL_5"], dictvalue["PL1000_CHANNEL_5"], pen=pg.mkPen('#5CDB95'))
+        dictvalue["PL1000_CHANNEL_7"] = ((dictvalue["PL1000_CHANNEL_7"] - int(
             config["ACcurrent"][0]["offset3"])) / 4092) * 5 / 0.066
-        self.plotACC.plot(dicttime["PL1000_CHANNEL_7"], dict["PL1000_CHANNEL_7"], pen=pg.mkPen('#EDF5E1'))
+        self.plotACC.plot(dicttime["PL1000_CHANNEL_7"], dictvalue["PL1000_CHANNEL_7"], pen=pg.mkPen('#EDF5E1'))
         self.plotX.sigRangeChanged.connect(self.onSigRangeChanged)
         self.plotY.sigRangeChanged.connect(self.onSigRangeChanged)
         self.plotZ.sigRangeChanged.connect(self.onSigRangeChanged)
@@ -399,28 +533,68 @@ class App(QMainWindow):
         self.plotACC.sigRangeChanged.connect(self.onSigRangeChanged)
 
     @pyqtSlot()
+    def stopview_single(self):
+        self.timer_single.stop()
+        self.gr.setDisabled(False)
+        self.grfft.setDisabled(False)
+        self.numb.setDisabled(False)
+        self.stopplot_single.setDisabled(True)
+        self.stopplot_single.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+        self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
+        self.statusBar().showMessage('Stopped')
+        self.showdata_single.setDisabled(False)
+        self.resetplot_single.setDisabled(False)
+        self.resetplot_single.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        status["SetDo"] = pl.pl1000SetDo(chandle, 0, 0)
+
+    @pyqtSlot()
     def deleteview(self):
         self.all_display()
         self.statusBar().setStyleSheet("background-color : #FFDF00; color: #05386B")
         self.statusBar().showMessage('All reset')
         listacq.clear()
+        self.statusBar().removeWidget(self.g)
         self.resetplot.setDisabled(True)
         self.resetplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
         self.startplot.setDisabled(False)
         self.startplot.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
         self.gr.setDisabled(True)
         self.grfft.setDisabled(True)
+        self.numb.setDisabled(True)
+
+    @pyqtSlot()
+    def deleteview_single(self):
+        self.single_display()
+        self.statusBar().setStyleSheet("background-color : #FFDF00; color: #05386B")
+        self.statusBar().showMessage('All reset')
+        listacq.clear()
+        self.statusBar().removeWidget(self.g)
+        self.resetplot_single.setDisabled(True)
+        self.resetplot_single.setStyleSheet('QPushButton {background-color: #5CDB95; color: #5CDB95;}')
+        self.startplot_single.setDisabled(False)
+        self.startplot_single.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
+        self.gr.setDisabled(True)
+        self.grfft.setDisabled(True)
+        self.numb.setDisabled(True)
+
     def update_accel(self):
         for i in listacq:
-            dicttime[i], dict[i] = self.measure(dicttime[i], dict[i], i, chandle, self.start)
+            dicttime[i], dictvalue[i] = self.measure(dicttime[i], dictvalue[i], i, chandle)
 
-    def measure(self, countdataX, dataX, channel, chandle, start):
+    def measure(self, countdataX, dataX, channel, chandle):
         value = ctypes.c_int16()
         status["getSingle"] = pl.pl1000GetSingle(chandle, pl.PL1000Inputs[channel], ctypes.byref(value))
-        countdataX = np.append(countdataX, [(time.time() - start)])
-        dataX = np.append(dataX, [(value.value)])
-        assert_pico_ok(status["getSingle"])
-        return [countdataX, dataX]
+        return [np.append(countdataX, [time.time()]), np.append(dataX, [(value.value)])]
+
+    def update_accel_single(self):
+        status["run"] = pl.pl1000Run(chandle, 10000, self.mode)
+        time.sleep(self.usForBlock.value / 1000000)
+        values = (ctypes.c_uint16 * self.noOfValues.value)()
+        oveflow = ctypes.c_uint16()
+        status["getValues"] = pl.pl1000GetValues(chandle, ctypes.byref(values), ctypes.byref(self.noOfValues),
+                                                 ctypes.byref(oveflow), None)
+        self.plotChanData = np.append(self.plotChanData, [values])
+
 
     def onSigRangeChanged(self, r):
         self.plotX.sigRangeChanged.disconnect(self.onSigRangeChanged)
@@ -490,54 +664,56 @@ class App(QMainWindow):
 
     @pyqtSlot()
     def showdatatable(self):
-        self.table = QTableView()
-
-        data = np.array([
-            dicttime["PL1000_CHANNEL_9"],
-            dict["PL1000_CHANNEL_9"],
-            dicttime["PL1000_CHANNEL_10"],
-            dict["PL1000_CHANNEL_10"],
-            dicttime["PL1000_CHANNEL_11"],
-            dict["PL1000_CHANNEL_11"],
-            dicttime["PL1000_CHANNEL_2"],
-            dict["PL1000_CHANNEL_2"],
-            dicttime["PL1000_CHANNEL_1"],
-            dict["PL1000_CHANNEL_1"],
-            dicttime["PL1000_CHANNEL_4"],
-            dict["PL1000_CHANNEL_4"],
-            dicttime["PL1000_CHANNEL_6"],
-            dict["PL1000_CHANNEL_6"],
-            dicttime["PL1000_CHANNEL_8"],
-            dict["PL1000_CHANNEL_8"],
-            dicttime["PL1000_CHANNEL_3"],
-            dict["PL1000_CHANNEL_3"],
-            dicttime["PL1000_CHANNEL_5"],
-            dict["PL1000_CHANNEL_5"],
-            dicttime["PL1000_CHANNEL_7"],
-            dict["PL1000_CHANNEL_7"],
-        ])
-        self.dataex = np.transpose(data)
-        self.model = TableModel(self.dataex)
-        header_labels = ['Time X', 'Data X', 'Time Y', 'Data Y', 'Time Z', 'Data Z', 'Time DCV', 'Data DCV', 'Time DCC',
-                         'Data DCC', 'Time ACV1', 'Data ACV1', 'Time ACV2', 'Data ACV2', 'Time ACV3', 'Data ACV3',
-                         'Time ACC1', 'Data ACC1', 'Time ACC2', 'Data ACC2', 'Time ACC3', 'Data ACC3']
-        df = pd.DataFrame(
-            {header_labels[0]: data[0], header_labels[1]: data[1], header_labels[2]: data[2], header_labels[3]: data[3],
-             header_labels[4]: data[4], header_labels[5]: data[5], header_labels[6]: data[6], header_labels[7]: data[7],
-             header_labels[8]: data[8], header_labels[9]: data[9], header_labels[10]: data[10],
-             header_labels[11]: data[11], header_labels[12]: data[12], header_labels[13]: data[13],
-             header_labels[14]: data[14], header_labels[15]: data[15], header_labels[16]: data[16],
-             header_labels[17]: data[17], header_labels[18]: data[18], header_labels[19]: data[19],
-             header_labels[20]: data[20], header_labels[21]: data[21]})
-
-        filepath = 'data_DAC1012-' + datetime.now().strftime("%m-%d-%Y_%H%M%S") + '.xlsx'
-        df.to_excel(filepath, index=False)
-
-        self.table.setModel(self.model)
-        self.table.setStyleSheet('QHeaderView::section { background-color: #5CDB95; color: #05386B}')
-        self.layout.addWidget(self.table)
-        self.table.show()
-
+        self.warr = QTimer()
+        try:
+            z = list()
+            income_sheets = {}
+            listdataframe = []
+            for i in listacq:
+                z.append(dictinfo[i][1] + " time" + " [s]")
+                z.append(dictinfo[i][1] + " data" + " [" + dictinfo[i][0] + "]")
+                index = listacq.index(i)
+                df = pd.DataFrame({z[index * 2]: dicttime[i], z[(index + 1) * 2 - 1]: dictvalue[i]})
+                listdataframe.append(df)
+                income_sheets[dictinfo[i][1]] = listdataframe[listacq.index(i)]
+            filepath = 'data_DAC1012-' + datetime.now().strftime("%m-%d-%Y_%H%M%S") + '.xlsx'
+            writer = pd.ExcelWriter(filepath, engine='xlsxwriter')
+            workbook = writer.book
+            for sheet_name in income_sheets.keys():
+                income_sheets[sheet_name].to_excel(writer, sheet_name=sheet_name, index=False)
+                writer.sheets[sheet_name].conditional_format('B2:B' + str(len(dictvalue[listacq[0]]) + 1),
+                                                             {'type': '3_color_scale', 'min_color': "red",
+                                                              'mid_color': "yellow",
+                                                              'max_color': "green",
+                                                              'mid_type': "num"})
+                chart = workbook.add_chart({'type': 'line'})
+                max_row = len(dictvalue[listacq[0]]) + 1
+                chart.add_series({
+                    'name': [sheet_name, 0, 1],
+                    'categories': [sheet_name, 2, 0, max_row, 0],
+                    'values': [sheet_name, 2, 1, max_row, 1],
+                    'line': {
+                    'color': 'orange',
+                    'width': 1,
+                    },
+                })
+                writer.sheets[sheet_name].insert_chart('D6', chart, {'x_scale': 3, 'y_scale': 2})
+                cell_format = workbook.add_format()
+                cell_format.set_bold()
+                cell_format.set_font_color('black')
+                cell_format.set_font_size(40)
+                writer.sheets[sheet_name].set_column(0, 1, 20)
+                writer.sheets[sheet_name].write(0, 4, sheet_name + " data acquisition", cell_format)
+            writer.save()
+            workbook.close()
+            self.statusBar().setStyleSheet("background-color : #5CDB95; color: #EDF5E1")
+            self.statusBar().showMessage('Excel file saved')
+        except:
+            self.warr.setInterval(500)
+            self.warr.setTimerType(Qt.PreciseTimer)
+            self.b = 1
+            self.warr.timeout.connect(lambda: self.warning("Error while saving the data"))
+            self.warr.start()
 
 class DialogConfig(QDialog):
     NumGridRows = 3
@@ -549,7 +725,7 @@ class DialogConfig(QDialog):
         mainLayout = QVBoxLayout()
         mainLayout.addWidget(self.formGroupBox)
         self.setLayout(mainLayout)
-
+        self.setWindowIcon(QIcon('icon.png'))
         self.setWindowTitle("Configuration")
 
     def createFormGroupBox(self):
@@ -581,8 +757,6 @@ class DialogConfig(QDialog):
         self.qline10 = QLineEdit()
         layout.addRow(QLabel("Z axis sensitivity:"), self.qline10)
         layout.addRow(QLabel("Time of sampling"))
-        self.qline11 = QLineEdit()
-        layout.addRow(QLabel("Nbr of microseconds:"), self.qline11)
         save = QPushButton("Save")
         save.setStyleSheet('QPushButton {background-color: #5CDB95; color: #05386B;}')
         save.clicked.connect(self.saveconfig)
@@ -616,14 +790,11 @@ class DialogConfig(QDialog):
             'offset3': self.qline7.text()
 
         })
-        data["time"] = []
-        data["time"].append({
-            'time': self.qline11.text()
-        })
         with open('config.json', 'w') as outfile:
             json.dumps(data, indent=4)
             json.dump(data, outfile)
         self.hide()
+
 
 class SetChannel(QDialog):
     NumGridRows = 3
@@ -632,6 +803,7 @@ class SetChannel(QDialog):
     def __init__(self):
         super(SetChannel, self).__init__()
         self.createFormGroupBox()
+        self.setWindowIcon(QIcon('icon.png'))
         mainLayout = QVBoxLayout()
         mainLayout.addWidget(self.formGroupBox)
         self.setLayout(mainLayout)
@@ -690,9 +862,18 @@ class SetChannel(QDialog):
 
     def checkBoxChangedAction(self, channel, state):
         if state == True:
-            listacq.append(channel)
+            if (channel in listacq) == False:
+                listacq.append(channel)
+            else:
+                pass
+        elif state == False:
+            if (channel in listacq) == True:
+                listacq.remove(channel)
+            else:
+                pass
         else:
-            listacq.remove(channel)
+            pass
+
 
 class DialogValue(QDialog):
     NumGridRows = 3
@@ -701,6 +882,7 @@ class DialogValue(QDialog):
     def __init__(self, fft):
         super(DialogValue, self).__init__()
         self.createFormGroupBox()
+        self.setWindowIcon(QIcon('icon.png'))
         mainLayout = QVBoxLayout()
         mainLayout.addWidget(self.formGroupBox)
         self.setLayout(mainLayout)
@@ -726,7 +908,7 @@ class DialogValue(QDialog):
         self.checkBoxDCC = QCheckBox("DC current")
         self.checkBoxDCC.stateChanged.connect(
             lambda: self.checkBoxChangedAction("PL1000_CHANNEL_1", self.checkBoxDCC.isChecked()))
-        self.checkBoxACV1= QCheckBox("AC voltage 1")
+        self.checkBoxACV1 = QCheckBox("AC voltage 1")
         self.checkBoxACV1.stateChanged.connect(
             lambda: self.checkBoxChangedAction("PL1000_CHANNEL_4", self.checkBoxACV1.isChecked()))
         self.checkBoxACV2 = QCheckBox("AC voltage 2")
@@ -776,7 +958,7 @@ class DialogValue(QDialog):
             if fft == 0:
                 dataplot = DialogPlot(i)
             else:
-                dataplot = DialogPlotFFT(i,0)
+                dataplot = DialogPlotFFT(i, 0)
                 dataplot1 = DialogPlotFFT(i, 1)
                 layout.addWidget(dataplot1)
                 dataplot1.show()
@@ -792,12 +974,14 @@ class DialogPlot(QWidget):
         self.channel = channel
         self.graphWidget = pg.PlotWidget()
         layout = QVBoxLayout()
+        self.setWindowIcon(QIcon('icon.png'))
         self.setLayout(layout)
         layout.addWidget(self.graphWidget)
         self.graphWidget.showGrid(True, True, 0.5)
         self.graphWidget.setMenuEnabled(False)
         self.setWindowTitle(channel)
-        self.graphWidget.plot(dicttime[channel], dict[channel], pen=pg.mkPen('#5CDB95'))
+        self.graphWidget.plot(dicttime[channel], dictvalue[channel], pen=pg.mkPen('#5CDB95'))
+
 
 class DialogPlotFFT(QWidget):
 
@@ -807,17 +991,17 @@ class DialogPlotFFT(QWidget):
         self.graphWidget = pg.PlotWidget()
         layout = QVBoxLayout()
         self.setLayout(layout)
+        self.setWindowIcon(QIcon('icon.png'))
         layout.addWidget(self.graphWidget)
         if i == 0:
             self.setWindowTitle(channel + ' - signal with reverse FFT')
         else:
             self.setWindowTitle(channel + '- FFT')
-        N = len(dict[channel])
-        T = (dicttime[channel][-1] - dicttime[channel][0])/len(dict[channel])
-        y = dict[channel]
+        N = len(dictvalue[channel])
+        T = (dicttime[channel][-1] - dicttime[channel][0]) / len(dictvalue[channel])
+        y = dictvalue[channel]
         sig_fft = scipy.fft(y)
         sample_freq = scipy.fftpack.fftfreq(N, T)
-        xf = np.linspace(0.0, 1.0 / (2.0 * T), int(N/2))
         power = np.abs(sig_fft)
         pos_mask = np.where(sample_freq > 0)
         freqs = sample_freq[pos_mask]
@@ -829,40 +1013,41 @@ class DialogPlotFFT(QWidget):
         self.graphWidget.setMenuEnabled(False)
         if i == 0:
             self.graphWidget.plot(dicttime[channel], filtered_sig, pen=pg.mkPen('m'))
-            self.graphWidget.plot(dicttime[channel], dict[channel], pen=pg.mkPen('#5CDB95'))
+            self.graphWidget.plot(dicttime[channel], dictvalue[channel], pen=pg.mkPen('#5CDB95'))
         else:
-            self.graphWidget.plot(sample_freq, power
-                                  , pen=pg.mkPen('#5CDB95'))
+            #self.graphWidget.plot(sample_freq, power
+                                  #, pen=pg.mkPen('#5CDB95'))
+            yf = scipy.fftpack.fft(y)
+            xf = np.linspace(0.0, 1.0 // (2.0 * T), N // 2)
+            self.graphWidget.plot(xf, 2.0/N * np.abs(yf[:N//2]))
 
 
-class TableModel(QAbstractTableModel):
+class DialogIntValue(QDialog):
+    NumGridRows = 3
+    NumButtons = 4
 
-    def __init__(self, data):
-        super(TableModel, self).__init__()
-        self._data = data
-        self.header_labels = ['Time X', 'Data X', 'Time Y', 'Data Y', 'Time Z', 'Data Z', 'Time DCV', 'Data DCV',
-                              'Time DCC', 'Data DCC', 'Time ACV1', 'Data ACV1', 'Time ACV2', 'Data ACV2', 'Time ACV3',
-                              'Data ACV3', 'Time ACC1', 'Data ACC1', 'Time ACC2', 'Data ACC2', 'Time ACC3', 'Data ACC3']
+    def __init__(self):
+        super(DialogIntValue, self).__init__()
+        self.createFormGroupBox()
+        self.setWindowIcon(QIcon('icon.png'))
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(self.scroll)
+        self.setLayout(mainLayout)
+        self.setWindowTitle("Interesting values")
 
-    def data(self, index, role):
-        if role == Qt.DisplayRole:
-            value = self._data[index.row(), index.column()]
-            return str(value)
-        elif role == Qt.BackgroundColorRole:
-            return QColor(5, 56, 107)
-        elif role == Qt.ForegroundRole:
-            return QColor(92, 219, 149)
-
-    def rowCount(self, index):
-        return self._data.shape[0]
-
-    def columnCount(self, index):
-        return self._data.shape[1]
-
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
-            return self.header_labels[section]
-        return QAbstractTableModel.headerData(self, section, orientation, role)
+    def createFormGroupBox(self):
+        self.scroll = QScrollArea()
+        self.formGroupBox = QGroupBox()
+        layout = QFormLayout()
+        for i in listacq:
+            layout.addRow(QLabel(dictinfo[i][1]))
+            layout.addRow(QLabel("Mean: "), QLabel(str(np.mean(dictvalue[i])) + " " + dictinfo[i][0]))
+            layout.addRow(QLabel("Minimum: "), QLabel(str(np.amin(dictvalue[i])) + " " + dictinfo[i][0]))
+            layout.addRow(QLabel("Maximum: "), QLabel(str(np.amax(dictvalue[i])) + " " + dictinfo[i][0]))
+            layout.addRow(QLabel(" "))
+        self.formGroupBox.setLayout(layout)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setWidget(self.formGroupBox)
 
 
 if __name__ == '__main__':
@@ -873,14 +1058,10 @@ if __name__ == '__main__':
     palette.setColor(QtGui.QPalette.Window, QColor(5, 56, 107))
     palette.setColor(QtGui.QPalette.WindowText, QColor(92, 219, 149))
     palette.setColor(QtGui.QPalette.Base, QColor(92, 219, 149))
-    palette.setColor(QtGui.QPalette.AlternateBase, QColor(0, 0, 0))
-    palette.setColor(QtGui.QPalette.ToolTipBase, Qt.white)
-    palette.setColor(QtGui.QPalette.ToolTipText, QColor(0, 0, 0))
     palette.setColor(QtGui.QPalette.Text, QColor(5, 56, 107))
     palette.setColor(QtGui.QPalette.Button, QColor(92, 219, 149))
     palette.setColor(QtGui.QPalette.ButtonText, QColor(92, 219, 149))
     palette.setColor(QtGui.QPalette.Disabled, QPalette.Light, Qt.transparent)
-    palette.setColor(QtGui.QPalette.BrightText, Qt.red)
     palette.setColor(QtGui.QPalette.Highlight, QColor(92, 219, 149))
     palette.setColor(QtGui.QPalette.HighlightedText, QColor(5, 56, 107))
     app.setPalette(palette)
